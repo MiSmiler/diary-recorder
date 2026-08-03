@@ -1,7 +1,13 @@
 [project]
 name = "diary-recorder"
 version = "0.1.0"
-description = "Add your description here"
+description = "A CLI diary tool that manages markdown-based daily journals"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
+
+[project.scripts]
+diary-recorder = "diary_recorder.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]

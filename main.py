@@ -1,6 +1,4 @@
-def main():
-    print("Hello from diary-recorder!")
-
+from diary_recorder.cli import main
 
 if __name__ == "__main__":
     main()
