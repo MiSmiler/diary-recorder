@@ -124,8 +124,11 @@ def cmd_show(args):
     storage = _get_storage()
     date_str = args.date or _today_str()
     try:
-        events = storage.read_events(date_str)
-        print(output.show(date_str, events), end="")
+        if args.raw:
+            print(storage.read_raw(date_str), end="")
+        else:
+            events = storage.read_events(date_str)
+            print(output.show(date_str, events), end="")
     except FileNotFoundError as e:
         _fail(str(e))
 
@@ -187,6 +190,8 @@ def main(argv: list[str] | None = None):
     p_show = sub.add_parser("show", help="Show diary for a date")
     p_show.add_argument("--date", type=_validate_date, default=None,
                         help="Date (YYYY-MM-DD), default: today")
+    p_show.add_argument("--raw", action="store_true", default=False,
+                        help="Output raw markdown file content as-is")
     p_show.set_defaults(func=cmd_show)
 
     # ---- list ----

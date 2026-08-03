@@ -41,6 +41,13 @@ class DiaryStorage:
             raise FileNotFoundError(f"no diary entry for {date_str}")
         return self._parse(path)
 
+    def read_raw(self, date_str: str) -> str:
+        """Read raw markdown content.  Raises FileNotFoundError if no file."""
+        path = self._path(date_str)
+        if not path.exists():
+            raise FileNotFoundError(f"no diary entry for {date_str}")
+        return path.read_text(encoding="utf-8")
+
     def add_event(self, date_str: str, event: Event) -> Event:
         """Add an event, auto-creating the file.  Inserts in time order."""
         events = self._read_or_empty(date_str)
