@@ -4,6 +4,12 @@ import os
 import pytest
 from diary_recorder.cli import main
 
+_ADD_USAGE = (
+    "usage: diary-recorder add [-h] [--date DATE] [--time TIME] "
+    "--content CONTENT\n"
+    "diary-recorder add: error: argument --content: "
+)
+
 
 def _run(*args, diary_dir):
     """Run main() with args and a custom DIARY_DIR, return (stdout, stderr, exit_code)."""
@@ -40,8 +46,7 @@ class TestAdd:
                               "--time", "08:30", "--content", "wake up",
                               diary_dir=diary_dir)
         assert code == 0
-        assert "Added event for 2026-08-03" in out
-        assert "`08:30` wake up" in out
+        assert out == "Added event for 2026-08-03:\n• `08:30` wake up\n"
 
         # verify file was written
         md = tmp_path / "2026-08-03.md"
@@ -65,11 +70,13 @@ class TestAdd:
         out, err, code = _run("add", "--content", "   ",
                               diary_dir=str(tmp_path))
         assert code != 0
+        assert err == _ADD_USAGE + "content cannot be empty\n"
 
     def test_rejects_multiline_content(self, tmp_path):
         out, err, code = _run("add", "--content", "line1\nline2",
                               diary_dir=str(tmp_path))
         assert code != 0
+        assert err == _ADD_USAGE + "content must be single line\n"
 
 
 class TestModify:
@@ -83,9 +90,7 @@ class TestModify:
         out, err, code = _run("modify", "--date", "2026-08-03", "--id", "2",
                               "--new-time", "10:00", diary_dir=diary_dir)
         assert code == 0
-        assert "Modified event for 2026-08-03" in out
-        assert "- `09:00` meeting" in out
-        assert "+ `10:00` meeting" in out
+        assert out == "Modified event for 2026-08-03:\n- `09:00` meeting\n+ `10:00` meeting\n"
 
     def test_modify_requires_at_least_one_change(self, tmp_path):
         diary_dir = str(tmp_path)
@@ -95,6 +100,7 @@ class TestModify:
         out, err, code = _run("modify", "--date", "2026-08-03", "--id", "1",
                               diary_dir=diary_dir)
         assert code != 0
+        assert err == "Error: at least one of new_time or new_content is required\n"
 
     def test_id_out_of_range(self, tmp_path):
         diary_dir = str(tmp_path)
@@ -104,6 +110,7 @@ class TestModify:
         out, err, code = _run("modify", "--date", "2026-08-03", "--id", "5",
                               "--new-content", "x", diary_dir=diary_dir)
         assert code != 0
+        assert err == "Error: event #5 not found for 2026-08-03 (has 1 event)\n"
 
 
 class TestDelete:
@@ -117,8 +124,7 @@ class TestDelete:
         out, err, code = _run("delete", "--date", "2026-08-03", "--id", "1",
                               diary_dir=diary_dir)
         assert code == 0
-        assert "Deleted event for 2026-08-03" in out
-        assert "`08:30` wake up" in out
+        assert out == "Deleted event for 2026-08-03:\n• `08:30` wake up\n"
 
     def test_id_out_of_range(self, tmp_path):
         diary_dir = str(tmp_path)
@@ -128,6 +134,7 @@ class TestDelete:
         out, err, code = _run("delete", "--date", "2026-08-03", "--id", "5",
                               diary_dir=diary_dir)
         assert code != 0
+        assert err == "Error: event #5 not found for 2026-08-03 (has 1 event)\n"
 
 
 class TestShow:
@@ -141,13 +148,13 @@ class TestShow:
         out, err, code = _run("show", "--date", "2026-08-03",
                               diary_dir=diary_dir)
         assert code == 0
-        assert "1. `08:30` wake up" in out
-        assert "2. `09:00` meeting" in out
+        assert out == "# 2026-08-03\n\n## Events\n\n1. `08:30` wake up\n2. `09:00` meeting\n"
 
     def test_file_not_exists(self, tmp_path):
         out, err, code = _run("show", "--date", "2026-08-03",
                               diary_dir=str(tmp_path))
         assert code != 0
+        assert err == "Error: no diary entry for 2026-08-03\n"
 
     def test_defaults_to_today(self, tmp_path, monkeypatch):
         import datetime
@@ -156,7 +163,7 @@ class TestShow:
         _run("add", "--content", "test", diary_dir=diary_dir)
         out, err, code = _run("show", diary_dir=diary_dir)
         assert code == 0
-        assert "`" in out
+        assert "test" in out
 
 
 class TestList:

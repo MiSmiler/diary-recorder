@@ -40,9 +40,7 @@ class TestAddEvent:
         date_file = tmp_path / "2026-08-03.md"
         assert date_file.exists()
         content = date_file.read_text(encoding="utf-8")
-        assert "# 2026-08-03" in content
-        assert "## Events" in content
-        assert "`08:30` wake up" in content
+        assert content == "# 2026-08-03\n\n## Events\n\n- `08:30` wake up\n"
 
     def test_inserts_in_time_order(self, tmp_path):
         storage = DiaryStorage(str(tmp_path))

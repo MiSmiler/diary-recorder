@@ -75,7 +75,7 @@ class TestAdd:
         result = add(event, "2026-08-03")
         assert result == (
             "Added event for 2026-08-03:\n"
-            "\u2022 `14:30` go shopping"
+            "• `14:30` go shopping"
         )
 
 
@@ -117,5 +117,5 @@ class TestDelete:
         result = delete(event, "2026-08-03")
         assert result == (
             "Deleted event for 2026-08-03:\n"
-            "\u2022 `09:00` meeting"
+            "• `09:00` meeting"
         )
