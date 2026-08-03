@@ -80,7 +80,7 @@ class TestModify:
         _run("add", "--date", "2026-08-03", "--time", "09:00",
              "--content", "meeting", diary_dir=diary_dir)
 
-        out, err, code = _run("modify", "--date", "2026-08-03", "--id", "1",
+        out, err, code = _run("modify", "--date", "2026-08-03", "--id", "2",
                               "--new-time", "10:00", diary_dir=diary_dir)
         assert code == 0
         assert "Modified event for 2026-08-03" in out
@@ -92,7 +92,7 @@ class TestModify:
         _run("add", "--date", "2026-08-03", "--time", "09:00",
              "--content", "meeting", diary_dir=diary_dir)
 
-        out, err, code = _run("modify", "--date", "2026-08-03", "--id", "0",
+        out, err, code = _run("modify", "--date", "2026-08-03", "--id", "1",
                               diary_dir=diary_dir)
         assert code != 0
 
@@ -114,7 +114,7 @@ class TestDelete:
         _run("add", "--date", "2026-08-03", "--time", "09:00",
              "--content", "meeting", diary_dir=diary_dir)
 
-        out, err, code = _run("delete", "--date", "2026-08-03", "--id", "0",
+        out, err, code = _run("delete", "--date", "2026-08-03", "--id", "1",
                               diary_dir=diary_dir)
         assert code == 0
         assert "Deleted event for 2026-08-03" in out

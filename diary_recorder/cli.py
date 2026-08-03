@@ -86,10 +86,12 @@ def cmd_add(args):
 def cmd_modify(args):
     storage = _get_storage()
     date_str = args.date or _today_str()
+    if args.id < 1:
+        _fail(f"invalid event id: {args.id} (must be >= 1)")
     try:
         old, new = storage.modify_event(
             date_str,
-            args.id,
+            args.id - 1,
             new_time=args.new_time,
             new_content=args.new_content,
         )
@@ -101,8 +103,10 @@ def cmd_modify(args):
 def cmd_delete(args):
     storage = _get_storage()
     date_str = args.date or _today_str()
+    if args.id < 1:
+        _fail(f"invalid event id: {args.id} (must be >= 1)")
     try:
-        deleted = storage.delete_event(date_str, args.id)
+        deleted = storage.delete_event(date_str, args.id - 1)
         print(format_delete(deleted, date_str))
     except (FileNotFoundError, IndexError) as e:
         _fail(str(e))
@@ -157,7 +161,7 @@ def main(argv: list[str] | None = None):
     p_mod.add_argument("--date", type=_validate_date, default=None,
                        help="Date (YYYY-MM-DD), default: today")
     p_mod.add_argument("--id", type=int, required=True, metavar="N",
-                       help="Event index (0-based, see show output)")
+                       help="Event number (1-based, see show output)")
     p_mod.add_argument("--new-time", type=_validate_time, default=None,
                        help="New time (HH:MM)")
     p_mod.add_argument("--new-content", type=_validate_content, default=None,
@@ -169,7 +173,7 @@ def main(argv: list[str] | None = None):
     p_del.add_argument("--date", type=_validate_date, default=None,
                        help="Date (YYYY-MM-DD), default: today")
     p_del.add_argument("--id", type=int, required=True, metavar="N",
-                       help="Event index (0-based, see show output)")
+                       help="Event number (1-based, see show output)")
     p_del.set_defaults(func=cmd_delete)
 
     # ---- show ----

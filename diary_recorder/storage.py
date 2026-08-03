@@ -70,7 +70,10 @@ class DiaryStorage:
 
         events = self.read_events(date_str)
         if index < 0 or index >= len(events):
-            raise IndexError(f"event index {index} out of range (0..{len(events)-1})")
+            raise IndexError(
+                f"event #{index + 1} not found for {date_str} "
+                f"(has {len(events)} event{'s' if len(events) != 1 else ''})"
+            )
 
         old = events[index]
         new_event = Event(
@@ -91,7 +94,10 @@ class DiaryStorage:
         """Delete an event by 0-based index.  Returns the deleted event."""
         events = self.read_events(date_str)
         if index < 0 or index >= len(events):
-            raise IndexError(f"event index {index} out of range (0..{len(events)-1})")
+            raise IndexError(
+                f"event #{index + 1} not found for {date_str} "
+                f"(has {len(events)} event{'s' if len(events) != 1 else ''})"
+            )
         deleted = events.pop(index)
         self._write(date_str, events)
         return deleted
