@@ -35,6 +35,8 @@ def _validate_date(s: str) -> str:
 
 
 def _validate_time(s: str) -> str:
+    if s == "now":
+        return s
     if not _TIME_RE.match(s):
         raise argparse.ArgumentTypeError(
             f"invalid time '{s}': expected HH:MM"
@@ -43,6 +45,18 @@ def _validate_time(s: str) -> str:
     if hh > 23 or mm > 59:
         raise argparse.ArgumentTypeError(f"invalid time '{s}'")
     return s
+
+
+def _resolve_time(time_str: str, date_str: str) -> str:
+    """Resolve 'now' keyword to current system time.
+
+    Only allowed when date_str is today.  Plain HH:MM strings pass through.
+    """
+    if time_str != "now":
+        return time_str
+    if date_str != _today_str():
+        _fail(f"'now' is only valid when date is today ({_today_str()})")
+    return _now_time_str()
 
 
 def _validate_content(s: str) -> str:
@@ -67,7 +81,7 @@ def _fail(msg: str) -> None:
 def cmd_add(args):
     storage = _get_storage()
     date_str = args.date or _today_str()
-    time_str = args.time or _now_time_str()
+    time_str = _resolve_time(args.time, date_str)
     try:
         event = Event(time=time_str, content=args.content)
         storage.add_event(date_str, event)
@@ -82,10 +96,11 @@ def cmd_modify(args):
     if args.id < 1:
         _fail(f"invalid event id: {args.id} (must be >= 1)")
     try:
+        new_time_resolved = _resolve_time(args.new_time, date_str) if args.new_time else None
         old, new = storage.modify_event(
             date_str,
             args.id - 1,
-            new_time=args.new_time,
+            new_time=new_time_resolved,
             new_content=args.new_content,
         )
         print(output.modify(old, new, date_str))
@@ -142,8 +157,8 @@ def main(argv: list[str] | None = None):
     p_add = sub.add_parser("add", help="Add a new event")
     p_add.add_argument("--date", type=_validate_date, default=None,
                        help="Date (YYYY-MM-DD), default: today")
-    p_add.add_argument("--time", type=_validate_time, default=None,
-                       help="Time (HH:MM), default: now")
+    p_add.add_argument("--time", type=_validate_time, required=True,
+                       help="Time (HH:MM) or 'now' for current time")
     p_add.add_argument("--content", type=_validate_content, required=True,
                        help="Event content (single line)")
     p_add.set_defaults(func=cmd_add)

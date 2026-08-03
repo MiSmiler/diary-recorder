@@ -5,7 +5,7 @@ import pytest
 from diary_recorder.cli import main
 
 _ADD_USAGE = (
-    "usage: diary-recorder add [-h] [--date DATE] [--time TIME] "
+    "usage: diary-recorder add [-h] [--date DATE] --time TIME "
     "--content CONTENT\n"
     "diary-recorder add: error: argument --content: "
 )
@@ -58,22 +58,49 @@ class TestAdd:
         import datetime
         today = "2026-08-03"
         monkeypatch.setattr("diary_recorder.cli._today_str", lambda: today)
-        monkeypatch.setattr("diary_recorder.cli._now_time_str", lambda: "14:30")
 
         out, err, code = _run("add", "--content", "test event",
+                              "--time", "14:30",
                               diary_dir=str(tmp_path))
         assert code == 0
         md = tmp_path / f"{today}.md"
         assert md.exists()
 
+    def test_time_now_resolves_to_current_time(self, tmp_path, monkeypatch):
+        import datetime
+        monkeypatch.setattr("diary_recorder.cli._today_str", lambda: "2026-08-03")
+        monkeypatch.setattr("diary_recorder.cli._now_time_str", lambda: "14:30")
+
+        out, err, code = _run("add", "--content", "test event",
+                              "--time", "now",
+                              diary_dir=str(tmp_path))
+        assert code == 0
+        md = tmp_path / "2026-08-03.md"
+        content = md.read_text(encoding="utf-8")
+        assert "`14:30` test event" in content
+
+    def test_time_now_rejected_for_non_today(self, tmp_path, monkeypatch):
+        import datetime
+        monkeypatch.setattr("diary_recorder.cli._today_str", lambda: "2026-08-03")
+
+        out, err, code = _run("add", "--content", "test",
+                              "--time", "now", "--date", "2026-01-15",
+                              diary_dir=str(tmp_path))
+        assert code != 0
+        assert err == (
+            "Error: 'now' is only valid when date is today (2026-08-03)\n"
+        )
+
     def test_rejects_empty_content(self, tmp_path):
         out, err, code = _run("add", "--content", "   ",
+                              "--time", "12:00",
                               diary_dir=str(tmp_path))
         assert code != 0
         assert err == _ADD_USAGE + "content cannot be empty\n"
 
     def test_rejects_multiline_content(self, tmp_path):
         out, err, code = _run("add", "--content", "line1\nline2",
+                              "--time", "12:00",
                               diary_dir=str(tmp_path))
         assert code != 0
         assert err == _ADD_USAGE + "content must be single line\n"
@@ -160,7 +187,8 @@ class TestShow:
         import datetime
         monkeypatch.setattr("diary_recorder.cli._today_str", lambda: "2026-08-03")
         diary_dir = str(tmp_path)
-        _run("add", "--content", "test", diary_dir=diary_dir)
+        _run("add", "--content", "test", "--time", "14:30",
+             diary_dir=diary_dir)
         out, err, code = _run("show", diary_dir=diary_dir)
         assert code == 0
         assert "test" in out
