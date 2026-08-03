@@ -3,7 +3,7 @@
 from diary_recorder.models import Event
 
 
-def format_show(date_str: str, events: list[Event]) -> str:
+def show(date_str: str, events: list[Event]) -> str:
     """Format the show command output with numbered events."""
     lines = [f"# {date_str}", "", "## Events"]
     if events:
@@ -13,7 +13,7 @@ def format_show(date_str: str, events: list[Event]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def format_list(dates: list[tuple[str, str, int]]) -> str:
+def list_dates(dates: list[tuple[str, str, int]]) -> str:
     """Format the list command output."""
     if not dates:
         return ""
@@ -24,15 +24,15 @@ def format_list(dates: list[tuple[str, str, int]]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def format_add(event: Event, date_str: str) -> str:
+def add(event: Event, date_str: str) -> str:
     """Format the add confirmation message."""
     return (
         f"Added event for {date_str}:\n"
-        f"\u2022 `{event.time}` {event.content}"
+        f"• `{event.time}` {event.content}"
     )
 
 
-def format_modify(old: Event, new: Event, date_str: str) -> str:
+def modify(old: Event, new: Event, date_str: str) -> str:
     """Format the modify confirmation message (diff style)."""
     return (
         f"Modified event for {date_str}:\n"
@@ -41,9 +41,9 @@ def format_modify(old: Event, new: Event, date_str: str) -> str:
     )
 
 
-def format_delete(event: Event, date_str: str) -> str:
+def delete(event: Event, date_str: str) -> str:
     """Format the delete confirmation message."""
     return (
         f"Deleted event for {date_str}:\n"
-        f"\u2022 `{event.time}` {event.content}"
+        f"• `{event.time}` {event.content}"
     )

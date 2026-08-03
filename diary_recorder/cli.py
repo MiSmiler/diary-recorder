@@ -1,7 +1,6 @@
 """CLI entry point using argparse."""
 
 import argparse
-import io
 import os
 import re
 import sys
@@ -9,13 +8,7 @@ from datetime import datetime, date
 
 from diary_recorder.models import Event
 from diary_recorder.storage import DiaryStorage
-from diary_recorder.formatter import (
-    format_show,
-    format_list,
-    format_add,
-    format_modify,
-    format_delete,
-)
+from diary_recorder import output
 
 _TIME_RE = re.compile(r"^\d{2}:\d{2}$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -78,7 +71,7 @@ def cmd_add(args):
     try:
         event = Event(time=time_str, content=args.content)
         storage.add_event(date_str, event)
-        print(format_add(event, date_str))
+        print(output.add(event, date_str))
     except ValueError as e:
         _fail(str(e))
 
@@ -95,7 +88,7 @@ def cmd_modify(args):
             new_time=args.new_time,
             new_content=args.new_content,
         )
-        print(format_modify(old, new, date_str))
+        print(output.modify(old, new, date_str))
     except (FileNotFoundError, IndexError, ValueError) as e:
         _fail(str(e))
 
@@ -107,7 +100,7 @@ def cmd_delete(args):
         _fail(f"invalid event id: {args.id} (must be >= 1)")
     try:
         deleted = storage.delete_event(date_str, args.id - 1)
-        print(format_delete(deleted, date_str))
+        print(output.delete(deleted, date_str))
     except (FileNotFoundError, IndexError) as e:
         _fail(str(e))
 
@@ -117,7 +110,7 @@ def cmd_show(args):
     date_str = args.date or _today_str()
     try:
         events = storage.read_events(date_str)
-        print(format_show(date_str, events), end="")
+        print(output.show(date_str, events), end="")
     except FileNotFoundError as e:
         _fail(str(e))
 
@@ -125,20 +118,19 @@ def cmd_show(args):
 def cmd_list(args):
     storage = _get_storage()
     dates = storage.list_dates()
-    out = format_list(dates)
+    out = output.list_dates(dates)
     if out:
         print(out, end="")
 
 
 def main(argv: list[str] | None = None):
     """Entry point. argv overrides sys.argv[1:] for testing."""
-    # Force UTF-8 output on Windows (default GBK can't encode bullet •).
-    # Only wrap real file handles; StringIO (used in tests) has no .buffer.
+    # Force UTF-8 output so that special characters (e.g. bullet •)
+    # work regardless of the system's default encoding.
     for name in ("stdout", "stderr"):
         stream = getattr(sys, name)
-        if hasattr(stream, "buffer"):
-            setattr(sys, name,
-                    io.TextIOWrapper(stream.buffer, encoding="utf-8", errors="replace"))
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
 
     parser = argparse.ArgumentParser(
         prog="diary-recorder",

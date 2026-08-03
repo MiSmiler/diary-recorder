@@ -17,10 +17,6 @@ class DiaryStorage:
         self.base_dir = base_dir
         os.makedirs(base_dir, exist_ok=True)
 
-    # ------------------------------------------------------------------
-    # public API
-    # ------------------------------------------------------------------
-
     def list_dates(self) -> list[tuple[str, str, int]]:
         """Return dates with weekday and event count, reversed chronological."""
         result: list[tuple[str, str, int]] = []
@@ -102,10 +98,6 @@ class DiaryStorage:
         self._write(date_str, events)
         return deleted
 
-    # ------------------------------------------------------------------
-    # internal helpers
-    # ------------------------------------------------------------------
-
     def _path(self, date_str: str) -> Path:
         return Path(self.base_dir) / f"{date_str}.md"
 
@@ -137,10 +129,14 @@ class DiaryStorage:
                 break  # next section
         return events
 
+    @staticmethod
+    def _format_event(event: Event) -> str:
+        return f"- `{event.time}` {event.content}"
+
     def _write(self, date_str: str, events: list[Event]):
         lines = [f"# {date_str}", "", "## Events", ""]
         for e in events:
-            lines.append(f"- `{e.time}` {e.content}")
+            lines.append(self._format_event(e))
         lines.append("")  # trailing newline
         self._path(date_str).write_text("\n".join(lines), encoding="utf-8")
 
