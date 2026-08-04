@@ -5,7 +5,7 @@ import re
 from datetime import date
 from pathlib import Path
 
-from diary_recorder.models import Event
+from diary_recorder.models import DateSummary, Event, Note
 
 _DATE_PATTERN = re.compile(r"^(\d{4}-\d{2}-\d{2})\.md$")
 
@@ -17,25 +17,32 @@ class DiaryStorage:
         self.base_dir = base_dir
         os.makedirs(base_dir, exist_ok=True)
 
-    def list_dates(self) -> list[tuple[str, str, int]]:
-        """Return dates with weekday and event count, reversed chronological."""
-        result: list[tuple[str, str, int]] = []
+    def list_dates(self) -> list[DateSummary]:
+        """Return dates with weekday and entry counts, reversed chronological."""
+        result: list[DateSummary] = []
         try:
             for name in os.listdir(self.base_dir):
                 m = _DATE_PATTERN.match(name)
                 if not m:
                     continue
                 date_str = m.group(1)
-                count = self._count_events(date_str)
-                weekday = self._weekday_abbr(date_str)
-                result.append((date_str, weekday, count))
+                path = self._path(date_str)
+                events, notes = self._parse(path)
+                result.append(
+                    DateSummary(
+                        date_str=date_str,
+                        weekday=self._weekday_abbr(date_str),
+                        event_count=len(events),
+                        note_count=len(notes),
+                    )
+                )
         except FileNotFoundError:
             return []
-        result.sort(key=lambda x: x[0], reverse=True)
+        result.sort(key=lambda x: x.date_str, reverse=True)
         return result
 
-    def read_events(self, date_str: str) -> list[Event]:
-        """Read events for a date.  Raises FileNotFoundError if no file."""
+    def read(self, date_str: str) -> tuple[list[Event], list[Note]]:
+        """Read events and notes for a date.  Raises FileNotFoundError if no file."""
         path = self._path(date_str)
         if not path.exists():
             raise FileNotFoundError(f"no diary entry for {date_str}")
@@ -48,12 +55,16 @@ class DiaryStorage:
             raise FileNotFoundError(f"no diary entry for {date_str}")
         return path.read_text(encoding="utf-8")
 
+    # ------------------------------------------------------------------
+    # Event operations
+    # ------------------------------------------------------------------
+
     def add_event(self, date_str: str, event: Event) -> Event:
         """Add an event, auto-creating the file.  Inserts in time order."""
-        events = self._read_or_empty(date_str)
+        events, notes = self._read_or_empty(date_str)
         insert_at = self._insert_index(events, event.time)
         events.insert(insert_at, event)
-        self._write(date_str, events)
+        self._write(date_str, events, notes)
         return event
 
     def modify_event(
@@ -71,12 +82,8 @@ class DiaryStorage:
         if new_time is None and new_content is None:
             raise ValueError("at least one of new_time or new_content is required")
 
-        events = self.read_events(date_str)
-        if index < 0 or index >= len(events):
-            raise IndexError(
-                f"event #{index + 1} not found for {date_str} "
-                f"(has {len(events)} event{'s' if len(events) != 1 else ''})"
-            )
+        events, notes = self.read(date_str)
+        self._check_index(events, index, "event", date_str)
 
         old = events[index]
         new_event = Event(
@@ -90,69 +97,150 @@ class DiaryStorage:
         else:
             events.insert(index, new_event)
 
-        self._write(date_str, events)
+        self._write(date_str, events, notes)
         return old, new_event
 
     def delete_event(self, date_str: str, index: int) -> Event:
         """Delete an event by 0-based index.  Returns the deleted event."""
-        events = self.read_events(date_str)
-        if index < 0 or index >= len(events):
-            raise IndexError(
-                f"event #{index + 1} not found for {date_str} "
-                f"(has {len(events)} event{'s' if len(events) != 1 else ''})"
-            )
+        events, notes = self.read(date_str)
+        self._check_index(events, index, "event", date_str)
         deleted = events.pop(index)
-        self._write(date_str, events)
+        self._write(date_str, events, notes)
         return deleted
+
+    # ------------------------------------------------------------------
+    # Note operations
+    # ------------------------------------------------------------------
+
+    def add_note(self, date_str: str, note: Note) -> Note:
+        """Add a note, auto-creating the file.  Appends to the end."""
+        events, notes = self._read_or_empty(date_str)
+        notes.append(note)
+        self._write(date_str, events, notes)
+        return note
+
+    def modify_note(
+        self,
+        date_str: str,
+        index: int,
+        *,
+        new_content: str,
+    ) -> tuple[Note, Note]:
+        """Modify a note by 0-based index.  Returns (old_note, new_note)."""
+        events, notes = self.read(date_str)
+        self._check_index(notes, index, "note", date_str)
+
+        old = notes[index]
+        new_note = Note(content=new_content)
+        notes[index] = new_note
+        self._write(date_str, events, notes)
+        return old, new_note
+
+    def delete_note(self, date_str: str, index: int) -> Note:
+        """Delete a note by 0-based index.  Returns the deleted note."""
+        events, notes = self.read(date_str)
+        self._check_index(notes, index, "note", date_str)
+        deleted = notes.pop(index)
+        self._write(date_str, events, notes)
+        return deleted
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
 
     def _path(self, date_str: str) -> Path:
         return Path(self.base_dir) / f"{date_str}.md"
 
-    def _read_or_empty(self, date_str: str) -> list[Event]:
-        path = self._path(date_str)
-        if not path.exists():
-            return []
-        return self._parse(path)
+    def _read_or_empty(self, date_str: str) -> tuple[list[Event], list[Note]]:
+        try:
+            return self.read(date_str)
+        except FileNotFoundError:
+            return [], []
 
-    def _parse(self, path: Path) -> list[Event]:
+    def _parse(self, path: Path) -> tuple[list[Event], list[Note]]:
+        text = path.read_text(encoding="utf-8")
+
+        # Check that both expected sections exist
+        if "## Events" not in text:
+            raise ValueError(f"missing ## Events section in {path.name}")
+        if "## Notes" not in text:
+            raise ValueError(f"missing ## Notes section in {path.name}")
+
         events: list[Event] = []
-        in_events = False
-        for line in path.read_text(encoding="utf-8").splitlines():
+        notes: list[Note] = []
+        current_section: str | None = None
+
+        for line in text.splitlines():
             if line.startswith("## Events"):
-                in_events = True
+                current_section = "events"
                 continue
-            if in_events and line.startswith("- `"):
-                # Parse "- `HH:MM` content"
+            if line.startswith("## Notes"):
+                current_section = "notes"
+                continue
+            if line.startswith("#"):
+                current_section = None
+                continue
+
+            if current_section == "events" and line.startswith("- `"):
                 try:
                     rest = line[3:]  # strip "- `"
                     tick = rest.index("`")
                     time_str = rest[:tick]
-                    content = rest[tick + 1:].strip()
+                    content = rest[tick + 1 :].strip()
                     if time_str:
                         events.append(Event(time=time_str, content=content))
                 except (ValueError, IndexError):
-                    pass  # malformed line, skip
-            elif in_events and line.startswith("#"):
-                break  # next section
-        return events
+                    pass
+
+            elif current_section == "notes" and line.startswith("- "):
+                content = line[2:].strip()
+                if content:
+                    notes.append(Note(content=content))
+
+        return events, notes
 
     @staticmethod
-    def _format_event(event: Event) -> str:
-        return f"- `{event.time}` {event.content}"
+    def _check_index(items: list, index: int, kind: str, date_str: str) -> None:
+        if index < 0 or index >= len(items):
+            s = "s" if len(items) != 1 else ""
+            raise IndexError(
+                f"{kind} #{index + 1} not found for {date_str} (has {len(items)} {kind}{s})"
+            )
 
-    def _write(self, date_str: str, events: list[Event]):
-        lines = [f"# {date_str}", "", "## Events", ""]
-        for e in events:
-            lines.append(self._format_event(e))
-        lines.append("")  # trailing newline
-        self._path(date_str).write_text("\n".join(lines), encoding="utf-8")
+    @staticmethod
+    def format_diary(
+        date_str: str, events: list[Event], notes: list[Note], *, numbered: bool = False
+    ) -> str:
+        """Format a diary entry as markdown.
 
-    def _count_events(self, date_str: str) -> int:
-        path = self._path(date_str)
-        if not path.exists():
-            return 0
-        content = path.read_text(encoding="utf-8")
-        return sum(1 for line in content.splitlines() if line.startswith("- `"))
+        Use numbered=True for display output, False for file storage.
+        """
+        lines = [f"# {date_str}"]
+        lines.append("")
+        lines.append("## Events")
+        lines.append("")
+        if events:
+            if numbered:
+                for i, e in enumerate(events, 1):
+                    lines.append(f"{i}. `{e.time}` {e.content}")
+            else:
+                for e in events:
+                    lines.append(f"- `{e.time}` {e.content}")
+            lines.append("")
+        lines.append("## Notes")
+        if notes:
+            lines.append("")
+            if numbered:
+                for i, n in enumerate(notes, 1):
+                    lines.append(f"{i}. {n.content}")
+            else:
+                for n in notes:
+                    lines.append(f"- {n.content}")
+        return "\n".join(lines) + "\n"
+
+    def _write(self, date_str: str, events: list[Event], notes: list[Note]):
+        content = self.format_diary(date_str, events, notes)
+        self._path(date_str).write_text(content, encoding="utf-8")
 
     @staticmethod
     def _insert_index(events: list[Event], new_time: str) -> int:
