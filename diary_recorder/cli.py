@@ -4,11 +4,11 @@ import argparse
 import os
 import re
 import sys
-from datetime import datetime, date
+from datetime import date, datetime
 
+from diary_recorder import output
 from diary_recorder.models import Event, Note
 from diary_recorder.storage import DiaryStorage
-from diary_recorder import output
 
 _TIME_RE = re.compile(r"^\d{2}:\d{2}$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -24,13 +24,11 @@ def _now_time_str() -> str:
 
 def _validate_date(s: str) -> str:
     if not _DATE_RE.match(s):
-        raise argparse.ArgumentTypeError(
-            f"invalid date '{s}': expected YYYY-MM-DD"
-        )
+        raise argparse.ArgumentTypeError(f"invalid date '{s}': expected YYYY-MM-DD")
     try:
         date.fromisoformat(s)
     except ValueError:
-        raise argparse.ArgumentTypeError(f"invalid date '{s}'")
+        raise argparse.ArgumentTypeError(f"invalid date '{s}'") from None
     return s
 
 
@@ -38,9 +36,7 @@ def _validate_time(s: str) -> str:
     if s == "now":
         return s
     if not _TIME_RE.match(s):
-        raise argparse.ArgumentTypeError(
-            f"invalid time '{s}': expected HH:MM"
-        )
+        raise argparse.ArgumentTypeError(f"invalid time '{s}': expected HH:MM")
     hh, mm = int(s[:2]), int(s[3:])
     if hh > 23 or mm > 59:
         raise argparse.ArgumentTypeError(f"invalid time '{s}'")
@@ -82,6 +78,7 @@ def _fail(msg: str) -> None:
 # add event
 # ------------------------------------------------------------------
 
+
 def cmd_add_event(args):
     storage = _get_storage()
     date_str = args.date or _today_str()
@@ -98,6 +95,7 @@ def cmd_add_event(args):
 # add note
 # ------------------------------------------------------------------
 
+
 def cmd_add_note(args):
     storage = _get_storage()
     date_str = args.date or _today_str()
@@ -112,6 +110,7 @@ def cmd_add_note(args):
 # ------------------------------------------------------------------
 # modify event
 # ------------------------------------------------------------------
+
 
 def cmd_modify_event(args):
     storage = _get_storage()
@@ -135,6 +134,7 @@ def cmd_modify_event(args):
 # modify note
 # ------------------------------------------------------------------
 
+
 def cmd_modify_note(args):
     storage = _get_storage()
     date_str = args.date or _today_str()
@@ -155,6 +155,7 @@ def cmd_modify_note(args):
 # delete event
 # ------------------------------------------------------------------
 
+
 def cmd_delete_event(args):
     storage = _get_storage()
     date_str = args.date or _today_str()
@@ -171,6 +172,7 @@ def cmd_delete_event(args):
 # delete note
 # ------------------------------------------------------------------
 
+
 def cmd_delete_note(args):
     storage = _get_storage()
     date_str = args.date or _today_str()
@@ -186,6 +188,7 @@ def cmd_delete_note(args):
 # ------------------------------------------------------------------
 # show
 # ------------------------------------------------------------------
+
 
 def cmd_show(args):
     storage = _get_storage()
@@ -204,6 +207,7 @@ def cmd_show(args):
 # list
 # ------------------------------------------------------------------
 
+
 def cmd_list(args):
     storage = _get_storage()
     dates = storage.list_dates()
@@ -215,6 +219,7 @@ def cmd_list(args):
 # ------------------------------------------------------------------
 # main
 # ------------------------------------------------------------------
+
 
 def main(argv: list[str] | None = None):
     """Entry point. argv overrides sys.argv[1:] for testing."""
@@ -236,19 +241,24 @@ def main(argv: list[str] | None = None):
     add_sub = p_add.add_subparsers(dest="add_type", required=True)
 
     p_add_event = add_sub.add_parser("event", help="Add a new event")
-    p_add_event.add_argument("--date", type=_validate_date, default=None,
-                             help="Date (YYYY-MM-DD), default: today")
-    p_add_event.add_argument("--time", type=_validate_time, required=True,
-                             help="Time (HH:MM) or 'now' for current time")
-    p_add_event.add_argument("--content", type=_validate_content, required=True,
-                             help="Event content (single line)")
+    p_add_event.add_argument(
+        "--date", type=_validate_date, default=None, help="Date (YYYY-MM-DD), default: today"
+    )
+    p_add_event.add_argument(
+        "--time", type=_validate_time, required=True, help="Time (HH:MM) or 'now' for current time"
+    )
+    p_add_event.add_argument(
+        "--content", type=_validate_content, required=True, help="Event content (single line)"
+    )
     p_add_event.set_defaults(func=cmd_add_event)
 
     p_add_note = add_sub.add_parser("note", help="Add a new note")
-    p_add_note.add_argument("--date", type=_validate_date, default=None,
-                            help="Date (YYYY-MM-DD), default: today")
-    p_add_note.add_argument("--content", type=_validate_content, required=True,
-                            help="Note content (single line)")
+    p_add_note.add_argument(
+        "--date", type=_validate_date, default=None, help="Date (YYYY-MM-DD), default: today"
+    )
+    p_add_note.add_argument(
+        "--content", type=_validate_content, required=True, help="Note content (single line)"
+    )
     p_add_note.set_defaults(func=cmd_add_note)
 
     # ---- modify ----
@@ -256,23 +266,30 @@ def main(argv: list[str] | None = None):
     mod_sub = p_mod.add_subparsers(dest="modify_type", required=True)
 
     p_mod_event = mod_sub.add_parser("event", help="Modify an existing event")
-    p_mod_event.add_argument("--date", type=_validate_date, default=None,
-                             help="Date (YYYY-MM-DD), default: today")
-    p_mod_event.add_argument("--id", type=int, required=True, metavar="N",
-                             help="Event number (1-based, see show output)")
-    p_mod_event.add_argument("--new-time", type=_validate_time, default=None,
-                             help="New time (HH:MM)")
-    p_mod_event.add_argument("--new-content", type=_validate_content, default=None,
-                             help="New content")
+    p_mod_event.add_argument(
+        "--date", type=_validate_date, default=None, help="Date (YYYY-MM-DD), default: today"
+    )
+    p_mod_event.add_argument(
+        "--id", type=int, required=True, metavar="N", help="Event number (1-based, see show output)"
+    )
+    p_mod_event.add_argument(
+        "--new-time", type=_validate_time, default=None, help="New time (HH:MM)"
+    )
+    p_mod_event.add_argument(
+        "--new-content", type=_validate_content, default=None, help="New content"
+    )
     p_mod_event.set_defaults(func=cmd_modify_event)
 
     p_mod_note = mod_sub.add_parser("note", help="Modify an existing note")
-    p_mod_note.add_argument("--date", type=_validate_date, default=None,
-                            help="Date (YYYY-MM-DD), default: today")
-    p_mod_note.add_argument("--id", type=int, required=True, metavar="N",
-                            help="Note number (1-based, see show output)")
-    p_mod_note.add_argument("--new-content", type=_validate_content, required=True,
-                            help="New content")
+    p_mod_note.add_argument(
+        "--date", type=_validate_date, default=None, help="Date (YYYY-MM-DD), default: today"
+    )
+    p_mod_note.add_argument(
+        "--id", type=int, required=True, metavar="N", help="Note number (1-based, see show output)"
+    )
+    p_mod_note.add_argument(
+        "--new-content", type=_validate_content, required=True, help="New content"
+    )
     p_mod_note.set_defaults(func=cmd_modify_note)
 
     # ---- delete ----
@@ -280,25 +297,31 @@ def main(argv: list[str] | None = None):
     del_sub = p_del.add_subparsers(dest="delete_type", required=True)
 
     p_del_event = del_sub.add_parser("event", help="Delete an event")
-    p_del_event.add_argument("--date", type=_validate_date, default=None,
-                             help="Date (YYYY-MM-DD), default: today")
-    p_del_event.add_argument("--id", type=int, required=True, metavar="N",
-                             help="Event number (1-based, see show output)")
+    p_del_event.add_argument(
+        "--date", type=_validate_date, default=None, help="Date (YYYY-MM-DD), default: today"
+    )
+    p_del_event.add_argument(
+        "--id", type=int, required=True, metavar="N", help="Event number (1-based, see show output)"
+    )
     p_del_event.set_defaults(func=cmd_delete_event)
 
     p_del_note = del_sub.add_parser("note", help="Delete a note")
-    p_del_note.add_argument("--date", type=_validate_date, default=None,
-                            help="Date (YYYY-MM-DD), default: today")
-    p_del_note.add_argument("--id", type=int, required=True, metavar="N",
-                            help="Note number (1-based, see show output)")
+    p_del_note.add_argument(
+        "--date", type=_validate_date, default=None, help="Date (YYYY-MM-DD), default: today"
+    )
+    p_del_note.add_argument(
+        "--id", type=int, required=True, metavar="N", help="Note number (1-based, see show output)"
+    )
     p_del_note.set_defaults(func=cmd_delete_note)
 
     # ---- show ----
     p_show = sub.add_parser("show", help="Show diary for a date")
-    p_show.add_argument("--date", type=_validate_date, default=None,
-                        help="Date (YYYY-MM-DD), default: today")
-    p_show.add_argument("--raw", action="store_true", default=False,
-                        help="Output raw markdown file content as-is")
+    p_show.add_argument(
+        "--date", type=_validate_date, default=None, help="Date (YYYY-MM-DD), default: today"
+    )
+    p_show.add_argument(
+        "--raw", action="store_true", default=False, help="Output raw markdown file content as-is"
+    )
     p_show.set_defaults(func=cmd_show)
 
     # ---- list ----

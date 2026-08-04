@@ -1,3 +1,9 @@
+## Project tooling
+
+- **Package manager**: `uv` — use `uv add`, `uv run`, `uv sync`, etc. When adding or removing dependencies, use `uv add` / `uv remove` rather than editing `pyproject.toml` by hand.
+- **Linter / formatter**: `ruff` — config in `pyproject.toml` (`[tool.ruff]`). After completing a batch of Python edits, run `uv run ruff check --fix . && uv run ruff format .` to auto-fix lint issues, then format.
+- **Test runner**: `pytest` — after lint + format pass, run `uv run pytest -q` to confirm nothing is broken.
+
 ## Agent skills
 
 ### Issue tracker

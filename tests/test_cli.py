@@ -1,7 +1,7 @@
 """Integration tests for the CLI entry point."""
 
 import os
-import pytest
+
 from diary_recorder.cli import main
 
 
@@ -36,9 +36,17 @@ def _run(*args, diary_dir):
 class TestAddEvent:
     def test_adds_event_and_confirms(self, tmp_path):
         diary_dir = str(tmp_path)
-        out, err, code = _run("add", "event", "--date", "2026-08-03",
-                              "--time", "08:30", "--content", "wake up",
-                              diary_dir=diary_dir)
+        out, err, code = _run(
+            "add",
+            "event",
+            "--date",
+            "2026-08-03",
+            "--time",
+            "08:30",
+            "--content",
+            "wake up",
+            diary_dir=diary_dir,
+        )
         assert code == 0
         assert out == "Added event for 2026-08-03:\n• `08:30` wake up\n"
 
@@ -48,53 +56,56 @@ class TestAddEvent:
         )
 
     def test_defaults_to_today(self, tmp_path, monkeypatch):
-        import datetime
         today = "2026-08-03"
         monkeypatch.setattr("diary_recorder.cli._today_str", lambda: today)
 
-        out, err, code = _run("add", "event", "--content", "test event",
-                              "--time", "14:30",
-                              diary_dir=str(tmp_path))
+        out, err, code = _run(
+            "add", "event", "--content", "test event", "--time", "14:30", diary_dir=str(tmp_path)
+        )
         assert code == 0
         md = tmp_path / f"{today}.md"
         assert md.exists()
 
     def test_time_now_resolves_to_current_time(self, tmp_path, monkeypatch):
-        import datetime
         monkeypatch.setattr("diary_recorder.cli._today_str", lambda: "2026-08-03")
         monkeypatch.setattr("diary_recorder.cli._now_time_str", lambda: "14:30")
 
-        out, err, code = _run("add", "event", "--content", "test event",
-                              "--time", "now",
-                              diary_dir=str(tmp_path))
+        out, err, code = _run(
+            "add", "event", "--content", "test event", "--time", "now", diary_dir=str(tmp_path)
+        )
         assert code == 0
         md = tmp_path / "2026-08-03.md"
         content = md.read_text(encoding="utf-8")
         assert "`14:30` test event" in content
 
     def test_time_now_rejected_for_non_today(self, tmp_path, monkeypatch):
-        import datetime
         monkeypatch.setattr("diary_recorder.cli._today_str", lambda: "2026-08-03")
 
-        out, err, code = _run("add", "event", "--content", "test",
-                              "--time", "now", "--date", "2026-01-15",
-                              diary_dir=str(tmp_path))
-        assert code != 0
-        assert err == (
-            "Error: 'now' is only valid when date is today (2026-08-03)\n"
+        out, err, code = _run(
+            "add",
+            "event",
+            "--content",
+            "test",
+            "--time",
+            "now",
+            "--date",
+            "2026-01-15",
+            diary_dir=str(tmp_path),
         )
+        assert code != 0
+        assert err == ("Error: 'now' is only valid when date is today (2026-08-03)\n")
 
     def test_rejects_empty_content(self, tmp_path):
-        out, err, code = _run("add", "event", "--content", "   ",
-                              "--time", "12:00",
-                              diary_dir=str(tmp_path))
+        out, err, code = _run(
+            "add", "event", "--content", "   ", "--time", "12:00", diary_dir=str(tmp_path)
+        )
         assert code != 0
         assert "content cannot be empty" in err
 
     def test_rejects_multiline_content(self, tmp_path):
-        out, err, code = _run("add", "event", "--content", "line1\nline2",
-                              "--time", "12:00",
-                              diary_dir=str(tmp_path))
+        out, err, code = _run(
+            "add", "event", "--content", "line1\nline2", "--time", "12:00", diary_dir=str(tmp_path)
+        )
         assert code != 0
         assert "content must be single line" in err
 
@@ -102,9 +113,15 @@ class TestAddEvent:
 class TestAddNote:
     def test_adds_note_and_confirms(self, tmp_path):
         diary_dir = str(tmp_path)
-        out, err, code = _run("add", "note", "--date", "2026-08-03",
-                              "--content", "today's thought",
-                              diary_dir=diary_dir)
+        out, err, code = _run(
+            "add",
+            "note",
+            "--date",
+            "2026-08-03",
+            "--content",
+            "today's thought",
+            diary_dir=diary_dir,
+        )
         assert code == 0
         assert out == "Added note for 2026-08-03:\n• today's thought\n"
 
@@ -114,25 +131,21 @@ class TestAddNote:
         )
 
     def test_defaults_to_today(self, tmp_path, monkeypatch):
-        import datetime
         today = "2026-08-03"
         monkeypatch.setattr("diary_recorder.cli._today_str", lambda: today)
 
-        out, err, code = _run("add", "note", "--content", "a note",
-                              diary_dir=str(tmp_path))
+        out, err, code = _run("add", "note", "--content", "a note", diary_dir=str(tmp_path))
         assert code == 0
         md = tmp_path / f"{today}.md"
         assert md.exists()
 
     def test_rejects_empty_content(self, tmp_path):
-        out, err, code = _run("add", "note", "--content", "   ",
-                              diary_dir=str(tmp_path))
+        out, err, code = _run("add", "note", "--content", "   ", diary_dir=str(tmp_path))
         assert code != 0
         assert "content cannot be empty" in err
 
     def test_rejects_multiline_content(self, tmp_path):
-        out, err, code = _run("add", "note", "--content", "line1\nline2",
-                              diary_dir=str(tmp_path))
+        out, err, code = _run("add", "note", "--content", "line1\nline2", diary_dir=str(tmp_path))
         assert code != 0
         assert "content must be single line" in err
 
@@ -140,39 +153,88 @@ class TestAddNote:
 class TestModifyEvent:
     def test_modifies_time(self, tmp_path):
         diary_dir = str(tmp_path)
-        _run("add", "event", "--date", "2026-08-03", "--time", "08:30",
-             "--content", "wake up", diary_dir=diary_dir)
-        _run("add", "event", "--date", "2026-08-03", "--time", "09:00",
-             "--content", "meeting", diary_dir=diary_dir)
-
-        out, err, code = _run("modify", "event", "--date", "2026-08-03",
-                              "--id", "2", "--new-time", "10:00",
-                              diary_dir=diary_dir)
-        assert code == 0
-        assert out == (
-            "Modified event for 2026-08-03:\n"
-            "- `09:00` meeting\n"
-            "+ `10:00` meeting\n"
+        _run(
+            "add",
+            "event",
+            "--date",
+            "2026-08-03",
+            "--time",
+            "08:30",
+            "--content",
+            "wake up",
+            diary_dir=diary_dir,
         )
+        _run(
+            "add",
+            "event",
+            "--date",
+            "2026-08-03",
+            "--time",
+            "09:00",
+            "--content",
+            "meeting",
+            diary_dir=diary_dir,
+        )
+
+        out, err, code = _run(
+            "modify",
+            "event",
+            "--date",
+            "2026-08-03",
+            "--id",
+            "2",
+            "--new-time",
+            "10:00",
+            diary_dir=diary_dir,
+        )
+        assert code == 0
+        assert out == ("Modified event for 2026-08-03:\n- `09:00` meeting\n+ `10:00` meeting\n")
 
     def test_modify_requires_at_least_one_change(self, tmp_path):
         diary_dir = str(tmp_path)
-        _run("add", "event", "--date", "2026-08-03", "--time", "09:00",
-             "--content", "meeting", diary_dir=diary_dir)
+        _run(
+            "add",
+            "event",
+            "--date",
+            "2026-08-03",
+            "--time",
+            "09:00",
+            "--content",
+            "meeting",
+            diary_dir=diary_dir,
+        )
 
-        out, err, code = _run("modify", "event", "--date", "2026-08-03",
-                              "--id", "1", diary_dir=diary_dir)
+        out, err, code = _run(
+            "modify", "event", "--date", "2026-08-03", "--id", "1", diary_dir=diary_dir
+        )
         assert code != 0
         assert err == "Error: at least one of new_time or new_content is required\n"
 
     def test_id_out_of_range(self, tmp_path):
         diary_dir = str(tmp_path)
-        _run("add", "event", "--date", "2026-08-03", "--time", "09:00",
-             "--content", "meeting", diary_dir=diary_dir)
+        _run(
+            "add",
+            "event",
+            "--date",
+            "2026-08-03",
+            "--time",
+            "09:00",
+            "--content",
+            "meeting",
+            diary_dir=diary_dir,
+        )
 
-        out, err, code = _run("modify", "event", "--date", "2026-08-03",
-                              "--id", "5", "--new-content", "x",
-                              diary_dir=diary_dir)
+        out, err, code = _run(
+            "modify",
+            "event",
+            "--date",
+            "2026-08-03",
+            "--id",
+            "5",
+            "--new-content",
+            "x",
+            diary_dir=diary_dir,
+        )
         assert code != 0
         assert err == "Error: event #5 not found for 2026-08-03 (has 1 event)\n"
 
@@ -180,27 +242,37 @@ class TestModifyEvent:
 class TestModifyNote:
     def test_modifies_content(self, tmp_path):
         diary_dir = str(tmp_path)
-        _run("add", "note", "--date", "2026-08-03",
-             "--content", "original", diary_dir=diary_dir)
+        _run("add", "note", "--date", "2026-08-03", "--content", "original", diary_dir=diary_dir)
 
-        out, err, code = _run("modify", "note", "--date", "2026-08-03",
-                              "--id", "1", "--new-content", "updated",
-                              diary_dir=diary_dir)
-        assert code == 0
-        assert out == (
-            "Modified note for 2026-08-03:\n"
-            "- original\n"
-            "+ updated\n"
+        out, err, code = _run(
+            "modify",
+            "note",
+            "--date",
+            "2026-08-03",
+            "--id",
+            "1",
+            "--new-content",
+            "updated",
+            diary_dir=diary_dir,
         )
+        assert code == 0
+        assert out == ("Modified note for 2026-08-03:\n- original\n+ updated\n")
 
     def test_id_out_of_range(self, tmp_path):
         diary_dir = str(tmp_path)
-        _run("add", "note", "--date", "2026-08-03",
-             "--content", "only", diary_dir=diary_dir)
+        _run("add", "note", "--date", "2026-08-03", "--content", "only", diary_dir=diary_dir)
 
-        out, err, code = _run("modify", "note", "--date", "2026-08-03",
-                              "--id", "5", "--new-content", "x",
-                              diary_dir=diary_dir)
+        out, err, code = _run(
+            "modify",
+            "note",
+            "--date",
+            "2026-08-03",
+            "--id",
+            "5",
+            "--new-content",
+            "x",
+            diary_dir=diary_dir,
+        )
         assert code != 0
         assert err == "Error: note #5 not found for 2026-08-03 (has 1 note)\n"
 
@@ -208,23 +280,52 @@ class TestModifyNote:
 class TestDeleteEvent:
     def test_deletes_event(self, tmp_path):
         diary_dir = str(tmp_path)
-        _run("add", "event", "--date", "2026-08-03", "--time", "08:30",
-             "--content", "wake up", diary_dir=diary_dir)
-        _run("add", "event", "--date", "2026-08-03", "--time", "09:00",
-             "--content", "meeting", diary_dir=diary_dir)
+        _run(
+            "add",
+            "event",
+            "--date",
+            "2026-08-03",
+            "--time",
+            "08:30",
+            "--content",
+            "wake up",
+            diary_dir=diary_dir,
+        )
+        _run(
+            "add",
+            "event",
+            "--date",
+            "2026-08-03",
+            "--time",
+            "09:00",
+            "--content",
+            "meeting",
+            diary_dir=diary_dir,
+        )
 
-        out, err, code = _run("delete", "event", "--date", "2026-08-03",
-                              "--id", "1", diary_dir=diary_dir)
+        out, err, code = _run(
+            "delete", "event", "--date", "2026-08-03", "--id", "1", diary_dir=diary_dir
+        )
         assert code == 0
         assert out == "Deleted event for 2026-08-03:\n• `08:30` wake up\n"
 
     def test_id_out_of_range(self, tmp_path):
         diary_dir = str(tmp_path)
-        _run("add", "event", "--date", "2026-08-03", "--time", "09:00",
-             "--content", "meeting", diary_dir=diary_dir)
+        _run(
+            "add",
+            "event",
+            "--date",
+            "2026-08-03",
+            "--time",
+            "09:00",
+            "--content",
+            "meeting",
+            diary_dir=diary_dir,
+        )
 
-        out, err, code = _run("delete", "event", "--date", "2026-08-03",
-                              "--id", "5", diary_dir=diary_dir)
+        out, err, code = _run(
+            "delete", "event", "--date", "2026-08-03", "--id", "5", diary_dir=diary_dir
+        )
         assert code != 0
         assert err == "Error: event #5 not found for 2026-08-03 (has 1 event)\n"
 
@@ -232,23 +333,22 @@ class TestDeleteEvent:
 class TestDeleteNote:
     def test_deletes_note(self, tmp_path):
         diary_dir = str(tmp_path)
-        _run("add", "note", "--date", "2026-08-03",
-             "--content", "first", diary_dir=diary_dir)
-        _run("add", "note", "--date", "2026-08-03",
-             "--content", "second", diary_dir=diary_dir)
+        _run("add", "note", "--date", "2026-08-03", "--content", "first", diary_dir=diary_dir)
+        _run("add", "note", "--date", "2026-08-03", "--content", "second", diary_dir=diary_dir)
 
-        out, err, code = _run("delete", "note", "--date", "2026-08-03",
-                              "--id", "1", diary_dir=diary_dir)
+        out, err, code = _run(
+            "delete", "note", "--date", "2026-08-03", "--id", "1", diary_dir=diary_dir
+        )
         assert code == 0
         assert out == "Deleted note for 2026-08-03:\n• first\n"
 
     def test_id_out_of_range(self, tmp_path):
         diary_dir = str(tmp_path)
-        _run("add", "note", "--date", "2026-08-03",
-             "--content", "only", diary_dir=diary_dir)
+        _run("add", "note", "--date", "2026-08-03", "--content", "only", diary_dir=diary_dir)
 
-        out, err, code = _run("delete", "note", "--date", "2026-08-03",
-                              "--id", "5", diary_dir=diary_dir)
+        out, err, code = _run(
+            "delete", "note", "--date", "2026-08-03", "--id", "5", diary_dir=diary_dir
+        )
         assert code != 0
         assert err == "Error: note #5 not found for 2026-08-03 (has 1 note)\n"
 
@@ -256,15 +356,31 @@ class TestDeleteNote:
 class TestShow:
     def test_shows_full_diary(self, tmp_path):
         diary_dir = str(tmp_path)
-        _run("add", "event", "--date", "2026-08-03", "--time", "08:30",
-             "--content", "wake up", diary_dir=diary_dir)
-        _run("add", "event", "--date", "2026-08-03", "--time", "09:00",
-             "--content", "meeting", diary_dir=diary_dir)
-        _run("add", "note", "--date", "2026-08-03",
-             "--content", "a thought", diary_dir=diary_dir)
+        _run(
+            "add",
+            "event",
+            "--date",
+            "2026-08-03",
+            "--time",
+            "08:30",
+            "--content",
+            "wake up",
+            diary_dir=diary_dir,
+        )
+        _run(
+            "add",
+            "event",
+            "--date",
+            "2026-08-03",
+            "--time",
+            "09:00",
+            "--content",
+            "meeting",
+            diary_dir=diary_dir,
+        )
+        _run("add", "note", "--date", "2026-08-03", "--content", "a thought", diary_dir=diary_dir)
 
-        out, err, code = _run("show", "--date", "2026-08-03",
-                              diary_dir=diary_dir)
+        out, err, code = _run("show", "--date", "2026-08-03", diary_dir=diary_dir)
         assert code == 0
         assert out == (
             "# 2026-08-03\n\n"
@@ -276,17 +392,14 @@ class TestShow:
         )
 
     def test_file_not_exists(self, tmp_path):
-        out, err, code = _run("show", "--date", "2026-08-03",
-                              diary_dir=str(tmp_path))
+        out, err, code = _run("show", "--date", "2026-08-03", diary_dir=str(tmp_path))
         assert code != 0
         assert err == "Error: no diary entry for 2026-08-03\n"
 
     def test_defaults_to_today(self, tmp_path, monkeypatch):
-        import datetime
         monkeypatch.setattr("diary_recorder.cli._today_str", lambda: "2026-08-03")
         diary_dir = str(tmp_path)
-        _run("add", "event", "--content", "test", "--time", "14:30",
-             diary_dir=diary_dir)
+        _run("add", "event", "--content", "test", "--time", "14:30", diary_dir=diary_dir)
         out, err, code = _run("show", diary_dir=diary_dir)
         assert code == 0
         assert "test" in out
@@ -295,12 +408,29 @@ class TestShow:
 class TestList:
     def test_lists_dates(self, tmp_path):
         diary_dir = str(tmp_path)
-        _run("add", "event", "--date", "2026-08-01", "--time", "08:00",
-             "--content", "x", diary_dir=diary_dir)
-        _run("add", "event", "--date", "2026-08-03", "--time", "08:00",
-             "--content", "a", diary_dir=diary_dir)
-        _run("add", "note", "--date", "2026-08-03",
-             "--content", "n1", diary_dir=diary_dir)
+        _run(
+            "add",
+            "event",
+            "--date",
+            "2026-08-01",
+            "--time",
+            "08:00",
+            "--content",
+            "x",
+            diary_dir=diary_dir,
+        )
+        _run(
+            "add",
+            "event",
+            "--date",
+            "2026-08-03",
+            "--time",
+            "08:00",
+            "--content",
+            "a",
+            diary_dir=diary_dir,
+        )
+        _run("add", "note", "--date", "2026-08-03", "--content", "n1", diary_dir=diary_dir)
 
         out, err, code = _run("list", diary_dir=diary_dir)
         assert code == 0

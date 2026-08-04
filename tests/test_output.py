@@ -1,45 +1,30 @@
-import pytest
+from diary_recorder.models import DateSummary, Event, Note
 from diary_recorder.output import (
-    show,
-    list_dates,
     add_event,
-    modify_event,
-    delete_event,
     add_note,
-    modify_note,
+    delete_event,
     delete_note,
+    list_dates,
+    modify_event,
+    modify_note,
+    show,
 )
-from diary_recorder.models import Event, Note, DateSummary
 
 
 class TestShow:
     def test_empty_both_sections(self):
         result = show("2026-08-03", [], [])
-        assert result == (
-            "# 2026-08-03\n\n"
-            "## Events\n\n"
-            "## Notes\n"
-        )
+        assert result == ("# 2026-08-03\n\n## Events\n\n## Notes\n")
 
     def test_events_only_no_notes(self):
         events = [Event(time="08:30", content="wake up")]
         result = show("2026-08-03", events, [])
-        assert result == (
-            "# 2026-08-03\n\n"
-            "## Events\n\n"
-            "1. `08:30` wake up\n\n"
-            "## Notes\n"
-        )
+        assert result == ("# 2026-08-03\n\n## Events\n\n1. `08:30` wake up\n\n## Notes\n")
 
     def test_notes_only_no_events(self):
         notes = [Note(content="today's thought")]
         result = show("2026-08-03", [], notes)
-        assert result == (
-            "# 2026-08-03\n\n"
-            "## Events\n\n"
-            "## Notes\n\n"
-            "1. today's thought\n"
-        )
+        assert result == ("# 2026-08-03\n\n## Events\n\n## Notes\n\n1. today's thought\n")
 
     def test_both_sections(self):
         events = [
@@ -95,10 +80,7 @@ class TestAddEvent:
     def test_basic(self):
         event = Event(time="14:30", content="go shopping")
         result = add_event(event, "2026-08-03")
-        assert result == (
-            "Added event for 2026-08-03:\n"
-            "• `14:30` go shopping"
-        )
+        assert result == ("Added event for 2026-08-03:\n• `14:30` go shopping")
 
 
 class TestModifyEvent:
@@ -107,29 +89,21 @@ class TestModifyEvent:
         new = Event(time="10:00", content="team meeting")
         result = modify_event(old, new, "2026-08-03")
         assert result == (
-            "Modified event for 2026-08-03:\n"
-            "- `09:00` meeting\n"
-            "+ `10:00` team meeting"
+            "Modified event for 2026-08-03:\n- `09:00` meeting\n+ `10:00` team meeting"
         )
 
     def test_time_only(self):
         old = Event(time="09:00", content="meeting")
         new = Event(time="10:00", content="meeting")
         result = modify_event(old, new, "2026-08-03")
-        assert result == (
-            "Modified event for 2026-08-03:\n"
-            "- `09:00` meeting\n"
-            "+ `10:00` meeting"
-        )
+        assert result == ("Modified event for 2026-08-03:\n- `09:00` meeting\n+ `10:00` meeting")
 
     def test_content_only(self):
         old = Event(time="09:00", content="meeting")
         new = Event(time="09:00", content="team meeting")
         result = modify_event(old, new, "2026-08-03")
         assert result == (
-            "Modified event for 2026-08-03:\n"
-            "- `09:00` meeting\n"
-            "+ `09:00` team meeting"
+            "Modified event for 2026-08-03:\n- `09:00` meeting\n+ `09:00` team meeting"
         )
 
 
@@ -137,20 +111,14 @@ class TestDeleteEvent:
     def test_basic(self):
         event = Event(time="09:00", content="meeting")
         result = delete_event(event, "2026-08-03")
-        assert result == (
-            "Deleted event for 2026-08-03:\n"
-            "• `09:00` meeting"
-        )
+        assert result == ("Deleted event for 2026-08-03:\n• `09:00` meeting")
 
 
 class TestAddNote:
     def test_basic(self):
         note = Note(content="today's thought")
         result = add_note(note, "2026-08-03")
-        assert result == (
-            "Added note for 2026-08-03:\n"
-            "• today's thought"
-        )
+        assert result == ("Added note for 2026-08-03:\n• today's thought")
 
 
 class TestModifyNote:
@@ -158,18 +126,11 @@ class TestModifyNote:
         old = Note(content="old thought")
         new = Note(content="new thought")
         result = modify_note(old, new, "2026-08-03")
-        assert result == (
-            "Modified note for 2026-08-03:\n"
-            "- old thought\n"
-            "+ new thought"
-        )
+        assert result == ("Modified note for 2026-08-03:\n- old thought\n+ new thought")
 
 
 class TestDeleteNote:
     def test_basic(self):
         note = Note(content="remove me")
         result = delete_note(note, "2026-08-03")
-        assert result == (
-            "Deleted note for 2026-08-03:\n"
-            "• remove me"
-        )
+        assert result == ("Deleted note for 2026-08-03:\n• remove me")

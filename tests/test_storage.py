@@ -1,6 +1,7 @@
 import pytest
+
+from diary_recorder.models import DateSummary, Event, Note
 from diary_recorder.storage import DiaryStorage
-from diary_recorder.models import Event, Note, DateSummary
 
 # ---------------------------------------------------------------------------
 # Helper to write a minimal valid diary file for tests that need one
@@ -48,10 +49,7 @@ class TestRead:
         storage = DiaryStorage(str(tmp_path))
         _write_file(
             tmp_path / "2026-08-03.md",
-            "# 2026-08-03\n\n## Events\n\n"
-            "\n## Notes\n\n"
-            "- first thought\n"
-            "- second thought\n",
+            "# 2026-08-03\n\n## Events\n\n\n## Notes\n\n- first thought\n- second thought\n",
         )
         events, notes = storage.read("2026-08-03")
         assert events == []
@@ -101,9 +99,7 @@ class TestAddEvent:
         date_file = tmp_path / "2026-08-03.md"
         assert date_file.exists()
         content = date_file.read_text(encoding="utf-8")
-        assert content == (
-            "# 2026-08-03\n\n## Events\n\n- `08:30` wake up\n\n## Notes\n"
-        )
+        assert content == ("# 2026-08-03\n\n## Events\n\n- `08:30` wake up\n\n## Notes\n")
 
     def test_inserts_in_time_order(self, tmp_path):
         storage = DiaryStorage(str(tmp_path))
@@ -139,7 +135,9 @@ class TestModifyEvent:
         storage.add_event("2026-08-03", Event(time="18:00", content="go home"))
 
         old, new = storage.modify_event(
-            "2026-08-03", 1, new_time="20:00"  # modify meeting
+            "2026-08-03",
+            1,
+            new_time="20:00",  # modify meeting
         )
         assert old == Event(time="09:00", content="meeting")
         assert new == Event(time="20:00", content="meeting")
@@ -150,9 +148,7 @@ class TestModifyEvent:
         storage = DiaryStorage(str(tmp_path))
         storage.add_event("2026-08-03", Event(time="09:00", content="meeting"))
 
-        old, new = storage.modify_event(
-            "2026-08-03", 0, new_content="team meeting"
-        )
+        old, new = storage.modify_event("2026-08-03", 0, new_content="team meeting")
         assert old == Event(time="09:00", content="meeting")
         assert new == Event(time="09:00", content="team meeting")
         events, _ = storage.read("2026-08-03")
@@ -203,9 +199,7 @@ class TestAddNote:
         date_file = tmp_path / "2026-08-03.md"
         assert date_file.exists()
         content = date_file.read_text(encoding="utf-8")
-        assert content == (
-            "# 2026-08-03\n\n## Events\n\n## Notes\n\n- a note\n"
-        )
+        assert content == ("# 2026-08-03\n\n## Events\n\n## Notes\n\n- a note\n")
 
     def test_preserves_existing_events(self, tmp_path):
         storage = DiaryStorage(str(tmp_path))

@@ -5,7 +5,7 @@ import re
 from datetime import date
 from pathlib import Path
 
-from diary_recorder.models import Event, Note, DateSummary
+from diary_recorder.models import DateSummary, Event, Note
 
 _DATE_PATTERN = re.compile(r"^(\d{4}-\d{2}-\d{2})\.md$")
 
@@ -204,8 +204,7 @@ class DiaryStorage:
         if index < 0 or index >= len(items):
             s = "s" if len(items) != 1 else ""
             raise IndexError(
-                f"{kind} #{index + 1} not found for {date_str} "
-                f"(has {len(items)} {kind}{s})"
+                f"{kind} #{index + 1} not found for {date_str} (has {len(items)} {kind}{s})"
             )
 
     @staticmethod
