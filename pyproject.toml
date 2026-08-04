@@ -9,6 +9,9 @@ dependencies = []
 [project.scripts]
 diary-recorder = "diary_recorder.cli:main"
 
+[tool.setuptools.packages.find]
+include = ["diary_recorder*"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
