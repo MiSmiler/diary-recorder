@@ -18,3 +18,9 @@ _Avoid_: memo, comment, annotation
 **Date Summary**:
 A lightweight aggregate for the `list` command: a date, its weekday, and separate
 counts of its Events and Notes.
+
+**TimePoint**:
+A point in time with an optional date part (`YYYY-MM-DD` or `today`) and an
+optional time part (`HH:MM`, `now`, or a negative relative offset like `-15min`).
+Used as the unified parameter (`--at`, `--new-at`) across all subcommands.
+_Avoid_: timestamp, datetime

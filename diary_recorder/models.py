@@ -1,4 +1,29 @@
 from dataclasses import dataclass
+from typing import Generic, TypeVar
+
+T = TypeVar("T")
+
+
+@dataclass
+class TimePoint:
+    """A point in time with optional date and time parts.
+
+    date_str: "YYYY-MM-DD" or None
+    time_str: "HH:MM" or None
+    """
+
+    date_str: str | None
+    time_str: str | None
+
+
+@dataclass
+class ModifyResult(Generic[T]):
+    """Result of a modify operation, carrying old/new values and dates."""
+
+    old: T
+    new: T
+    old_date: str
+    new_date: str
 
 
 @dataclass

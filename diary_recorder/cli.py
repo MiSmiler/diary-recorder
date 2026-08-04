@@ -4,14 +4,15 @@ import argparse
 import os
 import re
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from diary_recorder import output
-from diary_recorder.models import Event, Note
+from diary_recorder.models import Event, Note, TimePoint
 from diary_recorder.storage import DiaryStorage
 
 _TIME_RE = re.compile(r"^\d{2}:\d{2}$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_RELATIVE_RE = re.compile(r"^-(?:(\d+)h)?(?:(\d+)(?:min|m))?$")
 
 
 def _today_str() -> str:
@@ -41,6 +42,63 @@ def _validate_time(s: str) -> str:
     if hh > 23 or mm > 59:
         raise argparse.ArgumentTypeError(f"invalid time '{s}'")
     return s
+
+
+def parse_timepoint(s: str, *, now: datetime | None = None) -> TimePoint:
+    """Parse a TimePoint string into a TimePoint dataclass.
+
+    Accepts forms like:
+    - "2026-08-03T12:30" (full datetime)
+    - "todayT14:00" (today with time)
+    - "today" (date only)
+    - "2026-08-03" (date only)
+    - "now" (current date and time)
+    - "-15min", "-1h20m", "-5h" (relative time offset)
+
+    The `now` parameter is used to resolve relative times and "now"/"today".
+    If None, the current system time is used.
+    """
+    if now is None:
+        now = datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
+
+    if "T" in s:
+        # Reject spaces around T
+        if " T" in s or "T " in s:
+            raise ValueError(f"invalid timepoint '{s}': no spaces allowed around 'T'")
+        date_part, time_part = s.split("T", 1)
+        if time_part == "now":
+            raise ValueError("'now' cannot be combined with a date part. Use 'now' standalone.")
+        if date_part == "today":
+            date_part = today_str
+        return TimePoint(date_str=date_part, time_str=time_part)
+    if s == "today":
+        return TimePoint(date_str=today_str, time_str=None)
+    if s == "now":
+        return TimePoint(date_str=today_str, time_str=now.strftime("%H:%M"))
+
+    # Relative time: -15min, -1h20m, -5h, -15m
+    if s.startswith("-"):
+        m = _RELATIVE_RE.match(s)
+        if not m or (m.group(1) is None and m.group(2) is None):
+            raise ValueError(f"invalid relative time '{s}': expected -Nh, -Nmin, -Nm, or -NhNm")
+        hours = int(m.group(1)) if m.group(1) else 0
+        minutes = int(m.group(2)) if m.group(2) else 0
+        offset_minutes = hours * 60 + minutes
+        if offset_minutes == 0:
+            raise ValueError("zero offset is not allowed for relative time. Use 'now' instead.")
+        if offset_minutes > 300:
+            raise ValueError(
+                f"relative time offset must not exceed 5 hours, "
+                f"got {hours}h{minutes}m. Use an explicit datetime instead."
+            )
+        resolved = now - timedelta(minutes=offset_minutes)
+        return TimePoint(
+            date_str=resolved.strftime("%Y-%m-%d"),
+            time_str=resolved.strftime("%H:%M"),
+        )
+
+    return TimePoint(date_str=s, time_str=None)
 
 
 def _resolve_time(time_str: str, date_str: str) -> str:
