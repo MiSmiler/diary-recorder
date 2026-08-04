@@ -18,7 +18,8 @@ uv tool install .
 diary-recorder add event --at todayT14:30 --content "Team standup"
 
 # Add an event with a relative time (15 minutes ago)
-diary-recorder add event --at -15min --content "Bug discovered in auth flow"
+# Note: relative offsets must use = form (--at=-15min), not space (--at -15min)
+diary-recorder add event --at=-15min --content "Bug discovered in auth flow"
 
 # Add a freeform note
 diary-recorder add note --at today --content "Interesting idea about project structure"
@@ -106,6 +107,9 @@ The `--at` and `--new-at` options accept a unified TimePoint format:
 | `now`              | Current date and time         |
 | `-15min`           | 15 minutes ago                |
 | `-1h20m`           | 1 hour 20 minutes ago         |
+
+> **Note**: Relative offsets (e.g. `-15min`) start with `-`, which argparse
+> misinterprets as an option flag. Use `=` form: `--at=-15min`, not `--at -15min`.
 
 ## Configuration
 

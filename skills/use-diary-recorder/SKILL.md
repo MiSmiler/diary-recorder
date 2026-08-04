@@ -44,15 +44,17 @@ Time-only values like `14:00` are **not valid**. Use `todayT14:00` instead.
 ### Relative offset
 
 ```bash
---at -15min                 # 15 minutes ago
---at -5m                    # 5 minutes ago
---at -2h                    # 2 hours ago
---at -1h30m                 # 1 hour 30 minutes ago
---at -1h30min               # same as above
+--at=-15min                 # 15 minutes ago
+--at=-5m                    # 5 minutes ago
+--at=-2h                    # 2 hours ago
+--at=-1h30m                 # 1 hour 30 minutes ago
+--at=-1h30min               # same as above
 ```
 
 - Offset must be > 0 and ≤ 5 hours. For larger offsets use an explicit datetime.
 - Zero offset (`-0min`) is not allowed; use `now` instead.
+- **Important**: Relative offsets start with `-`, which conflicts with option parsing.
+  Always use `=` form: `--at=-15min` (works), not `--at -15min` (breaks).
 
 ### Now
 
@@ -126,8 +128,8 @@ diary-recorder add event --at HH:MM --content "<single-line>"
 diary-recorder add event --at YYYY-MM-DDTHH:MM --content "<single-line>"
 
 # Happened N minutes ago (max 5 hours)
-diary-recorder add event --at -15min --content "<single-line>"
-diary-recorder add event --at -1h30m --content "<single-line>"
+diary-recorder add event --at=-15min --content "<single-line>"
+diary-recorder add event --at=-1h30m --content "<single-line>"
 ```
 
 - If the user does not specify a time, default to `--at now`.
