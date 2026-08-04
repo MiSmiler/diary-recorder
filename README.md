@@ -33,6 +33,45 @@ diary-recorder show --at today --raw
 diary-recorder list
 ```
 
+## Example Diary
+
+After adding a few entries, your day might look like this:
+
+```
+$ diary-recorder show --at 2026-08-03
+# 2026-08-03
+
+## Events
+
+1. `09:00` Team standup
+2. `10:30` Pair programming with Alice on auth module
+3. `14:00` Sprint planning
+
+## Notes
+
+1. Interesting idea about project structure — revisit tomorrow
+2. Need to look into uv's build backend options
+```
+
+Under the hood, each day is a plain markdown file at `~/.diary/2026-08-03.md`.
+Use `--raw` to see it exactly as stored:
+
+```
+$ diary-recorder show --at 2026-08-03 --raw
+# 2026-08-03
+
+## Events
+
+- `09:00` Team standup
+- `10:30` Pair programming with Alice on auth module
+- `14:00` Sprint planning
+
+## Notes
+
+- Interesting idea about project structure — revisit tomorrow
+- Need to look into uv's build backend options
+```
+
 ## Command Overview
 
 Every command supports `--help` — use it to discover available subcommands and
