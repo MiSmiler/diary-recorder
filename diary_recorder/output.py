@@ -29,13 +29,13 @@ def add_event(event: Event, date_str: str) -> str:
     return f"Added event for {date_str}:\n• `{event.time}` {event.content}"
 
 
-def modify_event(old: Event, new: Event, date_str: str) -> str:
+def modify_event(old: Event, new: Event, old_date: str, new_date: str) -> str:
     """Format the modify event confirmation message (diff style)."""
-    return (
-        f"Modified event for {date_str}:\n"
-        f"- `{old.time}` {old.content}\n"
-        f"+ `{new.time}` {new.content}"
-    )
+    if old_date == new_date:
+        header = f"Modified event for {old_date}:"
+    else:
+        header = f"Modified event for {old_date} → {new_date}:"
+    return f"{header}\n- `{old.time}` {old.content}\n+ `{new.time}` {new.content}"
 
 
 def delete_event(event: Event, date_str: str) -> str:
@@ -48,9 +48,13 @@ def add_note(note: Note, date_str: str) -> str:
     return f"Added note for {date_str}:\n• {note.content}"
 
 
-def modify_note(old: Note, new: Note, date_str: str) -> str:
+def modify_note(old: Note, new: Note, old_date: str, new_date: str) -> str:
     """Format the modify note confirmation message (diff style)."""
-    return f"Modified note for {date_str}:\n- {old.content}\n+ {new.content}"
+    if old_date == new_date:
+        header = f"Modified note for {old_date}:"
+    else:
+        header = f"Modified note for {old_date} → {new_date}:"
+    return f"{header}\n- {old.content}\n+ {new.content}"
 
 
 def delete_note(note: Note, date_str: str) -> str:

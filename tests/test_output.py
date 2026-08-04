@@ -87,7 +87,7 @@ class TestModifyEvent:
     def test_both_changed(self):
         old = Event(time="09:00", content="meeting")
         new = Event(time="10:00", content="team meeting")
-        result = modify_event(old, new, "2026-08-03")
+        result = modify_event(old, new, "2026-08-03", "2026-08-03")
         assert result == (
             "Modified event for 2026-08-03:\n- `09:00` meeting\n+ `10:00` team meeting"
         )
@@ -95,15 +95,23 @@ class TestModifyEvent:
     def test_time_only(self):
         old = Event(time="09:00", content="meeting")
         new = Event(time="10:00", content="meeting")
-        result = modify_event(old, new, "2026-08-03")
+        result = modify_event(old, new, "2026-08-03", "2026-08-03")
         assert result == ("Modified event for 2026-08-03:\n- `09:00` meeting\n+ `10:00` meeting")
 
     def test_content_only(self):
         old = Event(time="09:00", content="meeting")
         new = Event(time="09:00", content="team meeting")
-        result = modify_event(old, new, "2026-08-03")
+        result = modify_event(old, new, "2026-08-03", "2026-08-03")
         assert result == (
             "Modified event for 2026-08-03:\n- `09:00` meeting\n+ `09:00` team meeting"
+        )
+
+    def test_cross_date_move(self):
+        old = Event(time="09:00", content="meeting")
+        new = Event(time="09:00", content="meeting")
+        result = modify_event(old, new, "2026-08-03", "2026-08-04")
+        assert result == (
+            "Modified event for 2026-08-03 → 2026-08-04:\n- `09:00` meeting\n+ `09:00` meeting"
         )
 
 
@@ -125,8 +133,16 @@ class TestModifyNote:
     def test_basic(self):
         old = Note(content="old thought")
         new = Note(content="new thought")
-        result = modify_note(old, new, "2026-08-03")
+        result = modify_note(old, new, "2026-08-03", "2026-08-03")
         assert result == ("Modified note for 2026-08-03:\n- old thought\n+ new thought")
+
+    def test_cross_date_move(self):
+        old = Note(content="same thought")
+        new = Note(content="same thought")
+        result = modify_note(old, new, "2026-08-03", "2026-08-04")
+        assert result == (
+            "Modified note for 2026-08-03 → 2026-08-04:\n- same thought\n+ same thought"
+        )
 
 
 class TestDeleteNote:

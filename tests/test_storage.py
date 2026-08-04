@@ -134,13 +134,15 @@ class TestModifyEvent:
         storage.add_event("2026-08-03", Event(time="09:00", content="meeting"))
         storage.add_event("2026-08-03", Event(time="18:00", content="go home"))
 
-        old, new = storage.modify_event(
+        result = storage.modify_event(
             "2026-08-03",
             1,
             new_time="20:00",  # modify meeting
         )
-        assert old == Event(time="09:00", content="meeting")
-        assert new == Event(time="20:00", content="meeting")
+        assert result.old == Event(time="09:00", content="meeting")
+        assert result.new == Event(time="20:00", content="meeting")
+        assert result.old_date == "2026-08-03"
+        assert result.new_date == "2026-08-03"
         events, _ = storage.read("2026-08-03")
         assert [e.time for e in events] == ["08:30", "18:00", "20:00"]
 
@@ -148,11 +150,25 @@ class TestModifyEvent:
         storage = DiaryStorage(str(tmp_path))
         storage.add_event("2026-08-03", Event(time="09:00", content="meeting"))
 
-        old, new = storage.modify_event("2026-08-03", 0, new_content="team meeting")
-        assert old == Event(time="09:00", content="meeting")
-        assert new == Event(time="09:00", content="team meeting")
+        result = storage.modify_event("2026-08-03", 0, new_content="team meeting")
+        assert result.old == Event(time="09:00", content="meeting")
+        assert result.new == Event(time="09:00", content="team meeting")
         events, _ = storage.read("2026-08-03")
         assert events == [Event(time="09:00", content="team meeting")]
+
+    def test_cross_date_move(self, tmp_path):
+        storage = DiaryStorage(str(tmp_path))
+        storage.add_event("2026-08-03", Event(time="09:00", content="meeting"))
+
+        result = storage.modify_event("2026-08-03", 0, new_date="2026-08-04")
+        assert result.old_date == "2026-08-03"
+        assert result.new_date == "2026-08-04"
+        # Old file should now be empty
+        events, _ = storage.read("2026-08-03")
+        assert events == []
+        # New file should contain the moved event
+        events2, _ = storage.read("2026-08-04")
+        assert events2 == [Event(time="09:00", content="meeting")]
 
     def test_index_out_of_range_raises(self, tmp_path):
         storage = DiaryStorage(str(tmp_path))
@@ -215,11 +231,27 @@ class TestModifyNote:
         storage = DiaryStorage(str(tmp_path))
         storage.add_note("2026-08-03", Note(content="original"))
 
-        old, new = storage.modify_note("2026-08-03", 0, new_content="updated")
-        assert old == Note(content="original")
-        assert new == Note(content="updated")
+        result = storage.modify_note("2026-08-03", 0, new_content="updated")
+        assert result.old == Note(content="original")
+        assert result.new == Note(content="updated")
+        assert result.old_date == "2026-08-03"
+        assert result.new_date == "2026-08-03"
         _, notes = storage.read("2026-08-03")
         assert notes == [Note(content="updated")]
+
+    def test_cross_date_move(self, tmp_path):
+        storage = DiaryStorage(str(tmp_path))
+        storage.add_note("2026-08-03", Note(content="move me"))
+
+        result = storage.modify_note("2026-08-03", 0, new_date="2026-08-04")
+        assert result.old_date == "2026-08-03"
+        assert result.new_date == "2026-08-04"
+        # Old file should now have no notes
+        _, notes = storage.read("2026-08-03")
+        assert notes == []
+        # New file should contain the moved note
+        _, notes2 = storage.read("2026-08-04")
+        assert notes2 == [Note(content="move me")]
 
     def test_index_out_of_range_raises(self, tmp_path):
         storage = DiaryStorage(str(tmp_path))
