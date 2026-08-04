@@ -4,44 +4,13 @@ import argparse
 import os
 import re
 import sys
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 from diary_recorder import output
 from diary_recorder.models import Event, Note, TimePoint
 from diary_recorder.storage import DiaryStorage
 
-_TIME_RE = re.compile(r"^\d{2}:\d{2}$")
-_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _RELATIVE_RE = re.compile(r"^-(?:(\d+)h)?(?:(\d+)(?:min|m))?$")
-
-
-def _today_str() -> str:
-    return date.today().isoformat()
-
-
-def _now_time_str() -> str:
-    return datetime.now().strftime("%H:%M")
-
-
-def _validate_date(s: str) -> str:
-    if not _DATE_RE.match(s):
-        raise argparse.ArgumentTypeError(f"invalid date '{s}': expected YYYY-MM-DD")
-    try:
-        date.fromisoformat(s)
-    except ValueError:
-        raise argparse.ArgumentTypeError(f"invalid date '{s}'") from None
-    return s
-
-
-def _validate_time(s: str) -> str:
-    if s == "now":
-        return s
-    if not _TIME_RE.match(s):
-        raise argparse.ArgumentTypeError(f"invalid time '{s}': expected HH:MM")
-    hh, mm = int(s[:2]), int(s[3:])
-    if hh > 23 or mm > 59:
-        raise argparse.ArgumentTypeError(f"invalid time '{s}'")
-    return s
 
 
 def parse_timepoint(s: str, *, now: datetime | None = None) -> TimePoint:
@@ -101,18 +70,6 @@ def parse_timepoint(s: str, *, now: datetime | None = None) -> TimePoint:
     return TimePoint(date_str=s, time_str=None)
 
 
-def _resolve_time(time_str: str, date_str: str) -> str:
-    """Resolve 'now' keyword to current system time.
-
-    Only allowed when date_str is today.  Plain HH:MM strings pass through.
-    """
-    if time_str != "now":
-        return time_str
-    if date_str != _today_str():
-        _fail(f"'now' is only valid when date is today ({_today_str()})")
-    return _now_time_str()
-
-
 def _validate_content(s: str) -> str:
     trimmed = s.strip()
     if not trimmed:
@@ -139,12 +96,18 @@ def _fail(msg: str) -> None:
 
 def cmd_add_event(args):
     storage = _get_storage()
-    date_str = args.date or _today_str()
-    time_str = _resolve_time(args.time, date_str)
     try:
-        event = Event(time=time_str, content=args.content)
-        storage.add_event(date_str, event)
-        print(output.add_event(event, date_str))
+        tp = parse_timepoint(args.at)
+    except ValueError as e:
+        _fail(str(e))
+    if tp.date_str is None:
+        _fail("event requires a date")
+    if tp.time_str is None:
+        _fail("event requires a time")
+    try:
+        event = Event(time=tp.time_str, content=args.content)
+        storage.add_event(tp.date_str, event)
+        print(output.add_event(event, tp.date_str))
     except ValueError as e:
         _fail(str(e))
 
@@ -156,11 +119,18 @@ def cmd_add_event(args):
 
 def cmd_add_note(args):
     storage = _get_storage()
-    date_str = args.date or _today_str()
+    try:
+        tp = parse_timepoint(args.at)
+    except ValueError as e:
+        _fail(str(e))
+    if tp.date_str is None:
+        _fail("note requires a date")
+    if tp.time_str is not None:
+        _fail("note must not have a time")
     try:
         note = Note(content=args.content)
-        storage.add_note(date_str, note)
-        print(output.add_note(note, date_str))
+        storage.add_note(tp.date_str, note)
+        print(output.add_note(note, tp.date_str))
     except ValueError as e:
         _fail(str(e))
 
@@ -172,18 +142,40 @@ def cmd_add_note(args):
 
 def cmd_modify_event(args):
     storage = _get_storage()
-    date_str = args.date or _today_str()
+    try:
+        tp = parse_timepoint(args.at)
+    except ValueError as e:
+        _fail(str(e))
+    if tp.date_str is None:
+        _fail("modify requires a date")
+    if tp.time_str is not None:
+        _fail("modify requires a date only, not a time")
     if args.id < 1:
         _fail(f"invalid event id: {args.id} (must be >= 1)")
+
+    new_date = None
+    new_time = None
+    if args.new_at:
+        try:
+            new_tp = parse_timepoint(args.new_at)
+        except ValueError as e:
+            _fail(str(e))
+        if new_tp.date_str is None:
+            _fail("new-at requires a date")
+        if new_tp.time_str is None:
+            _fail("new-at requires a time for event")
+        new_date = new_tp.date_str
+        new_time = new_tp.time_str
+
     try:
-        new_time_resolved = _resolve_time(args.new_time, date_str) if args.new_time else None
-        old, new = storage.modify_event(
-            date_str,
+        result = storage.modify_event(
+            tp.date_str,
             args.id - 1,
-            new_time=new_time_resolved,
+            new_date=new_date,
+            new_time=new_time,
             new_content=args.new_content,
         )
-        print(output.modify_event(old, new, date_str))
+        print(output.modify_event(result.old, result.new, result.old_date, result.new_date))
     except (FileNotFoundError, IndexError, ValueError) as e:
         _fail(str(e))
 
@@ -195,16 +187,37 @@ def cmd_modify_event(args):
 
 def cmd_modify_note(args):
     storage = _get_storage()
-    date_str = args.date or _today_str()
+    try:
+        tp = parse_timepoint(args.at)
+    except ValueError as e:
+        _fail(str(e))
+    if tp.date_str is None:
+        _fail("modify requires a date")
+    if tp.time_str is not None:
+        _fail("modify requires a date only, not a time")
     if args.id < 1:
         _fail(f"invalid note id: {args.id} (must be >= 1)")
+
+    new_date = None
+    if args.new_at:
+        try:
+            new_tp = parse_timepoint(args.new_at)
+        except ValueError as e:
+            _fail(str(e))
+        if new_tp.date_str is None:
+            _fail("new-at requires a date")
+        if new_tp.time_str is not None:
+            _fail("new-at must not have a time for note")
+        new_date = new_tp.date_str
+
     try:
-        old, new = storage.modify_note(
-            date_str,
+        result = storage.modify_note(
+            tp.date_str,
             args.id - 1,
+            new_date=new_date,
             new_content=args.new_content,
         )
-        print(output.modify_note(old, new, date_str))
+        print(output.modify_note(result.old, result.new, result.old_date, result.new_date))
     except (FileNotFoundError, IndexError, ValueError) as e:
         _fail(str(e))
 
@@ -216,12 +229,19 @@ def cmd_modify_note(args):
 
 def cmd_delete_event(args):
     storage = _get_storage()
-    date_str = args.date or _today_str()
+    try:
+        tp = parse_timepoint(args.at)
+    except ValueError as e:
+        _fail(str(e))
+    if tp.date_str is None:
+        _fail("delete requires a date")
+    if tp.time_str is not None:
+        _fail("delete requires a date only, not a time")
     if args.id < 1:
         _fail(f"invalid event id: {args.id} (must be >= 1)")
     try:
-        deleted = storage.delete_event(date_str, args.id - 1)
-        print(output.delete_event(deleted, date_str))
+        deleted = storage.delete_event(tp.date_str, args.id - 1)
+        print(output.delete_event(deleted, tp.date_str))
     except (FileNotFoundError, IndexError) as e:
         _fail(str(e))
 
@@ -233,12 +253,19 @@ def cmd_delete_event(args):
 
 def cmd_delete_note(args):
     storage = _get_storage()
-    date_str = args.date or _today_str()
+    try:
+        tp = parse_timepoint(args.at)
+    except ValueError as e:
+        _fail(str(e))
+    if tp.date_str is None:
+        _fail("delete requires a date")
+    if tp.time_str is not None:
+        _fail("delete requires a date only, not a time")
     if args.id < 1:
         _fail(f"invalid note id: {args.id} (must be >= 1)")
     try:
-        deleted = storage.delete_note(date_str, args.id - 1)
-        print(output.delete_note(deleted, date_str))
+        deleted = storage.delete_note(tp.date_str, args.id - 1)
+        print(output.delete_note(deleted, tp.date_str))
     except (FileNotFoundError, IndexError) as e:
         _fail(str(e))
 
@@ -250,13 +277,20 @@ def cmd_delete_note(args):
 
 def cmd_show(args):
     storage = _get_storage()
-    date_str = args.date or _today_str()
+    try:
+        tp = parse_timepoint(args.at)
+    except ValueError as e:
+        _fail(str(e))
+    if tp.date_str is None:
+        _fail("show requires a date")
+    if tp.time_str is not None:
+        _fail("show requires a date only, not a time")
     try:
         if args.raw:
-            print(storage.read_raw(date_str), end="")
+            print(storage.read_raw(tp.date_str), end="")
         else:
-            events, notes = storage.read(date_str)
-            print(output.show(date_str, events, notes), end="")
+            events, notes = storage.read(tp.date_str)
+            print(output.show(tp.date_str, events, notes), end="")
     except FileNotFoundError as e:
         _fail(str(e))
 
@@ -300,10 +334,10 @@ def main(argv: list[str] | None = None):
 
     p_add_event = add_sub.add_parser("event", help="Add a new event")
     p_add_event.add_argument(
-        "--date", type=_validate_date, default=None, help="Date (YYYY-MM-DD), default: today"
-    )
-    p_add_event.add_argument(
-        "--time", type=_validate_time, required=True, help="Time (HH:MM) or 'now' for current time"
+        "--at",
+        type=str,
+        required=True,
+        help="TimePoint (date+time): YYYY-MM-DDTHH:MM, todayTHH:MM, now, -15min",
     )
     p_add_event.add_argument(
         "--content", type=_validate_content, required=True, help="Event content (single line)"
@@ -312,7 +346,7 @@ def main(argv: list[str] | None = None):
 
     p_add_note = add_sub.add_parser("note", help="Add a new note")
     p_add_note.add_argument(
-        "--date", type=_validate_date, default=None, help="Date (YYYY-MM-DD), default: today"
+        "--at", type=str, required=True, help="TimePoint (date only): YYYY-MM-DD, today"
     )
     p_add_note.add_argument(
         "--content", type=_validate_content, required=True, help="Note content (single line)"
@@ -325,13 +359,16 @@ def main(argv: list[str] | None = None):
 
     p_mod_event = mod_sub.add_parser("event", help="Modify an existing event")
     p_mod_event.add_argument(
-        "--date", type=_validate_date, default=None, help="Date (YYYY-MM-DD), default: today"
+        "--at", type=str, required=True, help="TimePoint (date only): YYYY-MM-DD, today"
     )
     p_mod_event.add_argument(
         "--id", type=int, required=True, metavar="N", help="Event number (1-based, see show output)"
     )
     p_mod_event.add_argument(
-        "--new-time", type=_validate_time, default=None, help="New time (HH:MM)"
+        "--new-at",
+        type=str,
+        default=None,
+        help="New TimePoint (date+time): YYYY-MM-DDTHH:MM, todayTHH:MM, now, -15min",
     )
     p_mod_event.add_argument(
         "--new-content", type=_validate_content, default=None, help="New content"
@@ -340,13 +377,16 @@ def main(argv: list[str] | None = None):
 
     p_mod_note = mod_sub.add_parser("note", help="Modify an existing note")
     p_mod_note.add_argument(
-        "--date", type=_validate_date, default=None, help="Date (YYYY-MM-DD), default: today"
+        "--at", type=str, required=True, help="TimePoint (date only): YYYY-MM-DD, today"
     )
     p_mod_note.add_argument(
         "--id", type=int, required=True, metavar="N", help="Note number (1-based, see show output)"
     )
     p_mod_note.add_argument(
-        "--new-content", type=_validate_content, required=True, help="New content"
+        "--new-at", type=str, default=None, help="New TimePoint (date only): YYYY-MM-DD, today"
+    )
+    p_mod_note.add_argument(
+        "--new-content", type=_validate_content, default=None, help="New content"
     )
     p_mod_note.set_defaults(func=cmd_modify_note)
 
@@ -356,7 +396,7 @@ def main(argv: list[str] | None = None):
 
     p_del_event = del_sub.add_parser("event", help="Delete an event")
     p_del_event.add_argument(
-        "--date", type=_validate_date, default=None, help="Date (YYYY-MM-DD), default: today"
+        "--at", type=str, required=True, help="TimePoint (date only): YYYY-MM-DD, today"
     )
     p_del_event.add_argument(
         "--id", type=int, required=True, metavar="N", help="Event number (1-based, see show output)"
@@ -365,7 +405,7 @@ def main(argv: list[str] | None = None):
 
     p_del_note = del_sub.add_parser("note", help="Delete a note")
     p_del_note.add_argument(
-        "--date", type=_validate_date, default=None, help="Date (YYYY-MM-DD), default: today"
+        "--at", type=str, required=True, help="TimePoint (date only): YYYY-MM-DD, today"
     )
     p_del_note.add_argument(
         "--id", type=int, required=True, metavar="N", help="Note number (1-based, see show output)"
@@ -375,7 +415,7 @@ def main(argv: list[str] | None = None):
     # ---- show ----
     p_show = sub.add_parser("show", help="Show diary for a date")
     p_show.add_argument(
-        "--date", type=_validate_date, default=None, help="Date (YYYY-MM-DD), default: today"
+        "--at", type=str, required=True, help="TimePoint (date only): YYYY-MM-DD, today"
     )
     p_show.add_argument(
         "--raw", action="store_true", default=False, help="Output raw markdown file content as-is"

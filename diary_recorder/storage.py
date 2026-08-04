@@ -5,7 +5,7 @@ import re
 from datetime import date
 from pathlib import Path
 
-from diary_recorder.models import DateSummary, Event, Note
+from diary_recorder.models import DateSummary, Event, ModifyResult, Note
 
 _DATE_PATTERN = re.compile(r"^(\d{4}-\d{2}-\d{2})\.md$")
 
@@ -72,33 +72,50 @@ class DiaryStorage:
         date_str: str,
         index: int,
         *,
+        new_date: str | None = None,
         new_time: str | None = None,
         new_content: str | None = None,
-    ) -> tuple[Event, Event]:
+    ) -> ModifyResult[Event]:
         """Modify an event by 0-based index.
 
-        Returns (old_event, new_event).  Re-sorts if time changed.
+        Returns ModifyResult with old/new events and dates.
+        Supports cross-date move when new_date differs from date_str.
+        Re-sorts if time changed.
         """
-        if new_time is None and new_content is None:
-            raise ValueError("at least one of new_time or new_content is required")
+        if new_date is None and new_time is None and new_content is None:
+            raise ValueError("at least one of new_date, new_time, or new_content is required")
 
         events, notes = self.read(date_str)
         self._check_index(events, index, "event", date_str)
 
         old = events[index]
-        new_event = Event(
-            time=new_time if new_time is not None else old.time,
-            content=new_content if new_content is not None else old.content,
-        )
-        events.pop(index)
-        if new_time is not None:
-            insert_at = self._insert_index(events, new_event.time)
-            events.insert(insert_at, new_event)
-        else:
-            events.insert(index, new_event)
+        resolved_date = new_date if new_date is not None else date_str
+        resolved_time = new_time if new_time is not None else old.time
+        resolved_content = new_content if new_content is not None else old.content
+        new_event = Event(time=resolved_time, content=resolved_content)
 
-        self._write(date_str, events, notes)
-        return old, new_event
+        # No-op detection
+        if resolved_date == date_str and new_event == old:
+            return ModifyResult(old=old, new=new_event, old_date=date_str, new_date=date_str)
+
+        events.pop(index)
+
+        if resolved_date != date_str:
+            # Cross-date move: write back old file, insert into new file
+            self._write(date_str, events, notes)
+            target_events, target_notes = self._read_or_empty(resolved_date)
+            insert_at = self._insert_index(target_events, resolved_time)
+            target_events.insert(insert_at, new_event)
+            self._write(resolved_date, target_events, target_notes)
+        else:
+            if new_time is not None:
+                insert_at = self._insert_index(events, resolved_time)
+                events.insert(insert_at, new_event)
+            else:
+                events.insert(index, new_event)
+            self._write(date_str, events, notes)
+
+        return ModifyResult(old=old, new=new_event, old_date=date_str, new_date=resolved_date)
 
     def delete_event(self, date_str: str, index: int) -> Event:
         """Delete an event by 0-based index.  Returns the deleted event."""
@@ -124,17 +141,42 @@ class DiaryStorage:
         date_str: str,
         index: int,
         *,
-        new_content: str,
-    ) -> tuple[Note, Note]:
-        """Modify a note by 0-based index.  Returns (old_note, new_note)."""
+        new_date: str | None = None,
+        new_content: str | None = None,
+    ) -> ModifyResult[Note]:
+        """Modify a note by 0-based index.
+
+        Returns ModifyResult with old/new notes and dates.
+        Supports cross-date move when new_date differs from date_str.
+        """
+        if new_date is None and new_content is None:
+            raise ValueError("at least one of new_date or new_content is required")
+
         events, notes = self.read(date_str)
         self._check_index(notes, index, "note", date_str)
 
         old = notes[index]
-        new_note = Note(content=new_content)
-        notes[index] = new_note
-        self._write(date_str, events, notes)
-        return old, new_note
+        resolved_date = new_date if new_date is not None else date_str
+        resolved_content = new_content if new_content is not None else old.content
+        new_note = Note(content=resolved_content)
+
+        # No-op detection
+        if resolved_date == date_str and new_note == old:
+            return ModifyResult(old=old, new=new_note, old_date=date_str, new_date=date_str)
+
+        notes.pop(index)
+
+        if resolved_date != date_str:
+            # Cross-date move
+            self._write(date_str, events, notes)
+            target_events, target_notes = self._read_or_empty(resolved_date)
+            target_notes.append(new_note)
+            self._write(resolved_date, target_events, target_notes)
+        else:
+            notes.insert(index, new_note)
+            self._write(date_str, events, notes)
+
+        return ModifyResult(old=old, new=new_note, old_date=date_str, new_date=resolved_date)
 
     def delete_note(self, date_str: str, index: int) -> Note:
         """Delete a note by 0-based index.  Returns the deleted note."""
