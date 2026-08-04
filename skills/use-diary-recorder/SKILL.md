@@ -101,6 +101,18 @@ A typical modify flow after an `add`:
 2. `show --at <date>` — get the numbered listing to find the event's `--id`
 3. `modify event --at <date> --id N --new-content "..."` — apply the change
 
+### Output format
+
+After running a diary-recorder command, always present the CLI output first
+wrapped in a code block, then add your own commentary below:
+
+<your_output>
+```text
+CLI output.
+```
+Your commentary.
+</your_output>
+
 ## Scenarios
 
 ### Add an event
