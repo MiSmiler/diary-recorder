@@ -274,6 +274,36 @@ class TestModifyEvent:
         assert code != 0
         assert err == "Error: event #5 not found for 2026-08-03 (has 1 event)\n"
 
+    def test_rejects_time_for_at(self, tmp_path):
+        out, err, code = _run(
+            "modify",
+            "event",
+            "--at",
+            "2026-08-03T12:00",
+            "--id",
+            "1",
+            "--new-content",
+            "x",
+            diary_dir=str(tmp_path),
+        )
+        assert code != 0
+        assert "modify requires a date only, not a time" in err
+
+    def test_rejects_date_only_for_new_at(self, tmp_path):
+        out, err, code = _run(
+            "modify",
+            "event",
+            "--at",
+            "2026-08-03",
+            "--id",
+            "1",
+            "--new-at",
+            "2026-08-03",
+            diary_dir=str(tmp_path),
+        )
+        assert code != 0
+        assert "new-at requires a time for event" in err
+
 
 class TestModifyNote:
     def test_modifies_content(self, tmp_path):
@@ -311,6 +341,36 @@ class TestModifyNote:
         )
         assert code != 0
         assert err == "Error: note #5 not found for 2026-08-03 (has 1 note)\n"
+
+    def test_rejects_time_for_at(self, tmp_path):
+        out, err, code = _run(
+            "modify",
+            "note",
+            "--at",
+            "2026-08-03T12:00",
+            "--id",
+            "1",
+            "--new-content",
+            "x",
+            diary_dir=str(tmp_path),
+        )
+        assert code != 0
+        assert "modify requires a date only, not a time" in err
+
+    def test_rejects_time_for_new_at(self, tmp_path):
+        out, err, code = _run(
+            "modify",
+            "note",
+            "--at",
+            "2026-08-03",
+            "--id",
+            "1",
+            "--new-at",
+            "2026-08-03T12:00",
+            diary_dir=str(tmp_path),
+        )
+        assert code != 0
+        assert "new-at must not have a time for note" in err
 
 
 class TestDeleteEvent:
@@ -359,6 +419,19 @@ class TestDeleteEvent:
         assert code != 0
         assert err == "Error: event #5 not found for 2026-08-03 (has 1 event)\n"
 
+    def test_rejects_time(self, tmp_path):
+        out, err, code = _run(
+            "delete",
+            "event",
+            "--at",
+            "2026-08-03T12:00",
+            "--id",
+            "1",
+            diary_dir=str(tmp_path),
+        )
+        assert code != 0
+        assert "delete requires a date only, not a time" in err
+
 
 class TestDeleteNote:
     def test_deletes_note(self, tmp_path):
@@ -381,6 +454,19 @@ class TestDeleteNote:
         )
         assert code != 0
         assert err == "Error: note #5 not found for 2026-08-03 (has 1 note)\n"
+
+    def test_rejects_time(self, tmp_path):
+        out, err, code = _run(
+            "delete",
+            "note",
+            "--at",
+            "2026-08-03T12:00",
+            "--id",
+            "1",
+            diary_dir=str(tmp_path),
+        )
+        assert code != 0
+        assert "delete requires a date only, not a time" in err
 
 
 class TestShow:
@@ -438,6 +524,16 @@ class TestShow:
         out, err, code = _run("show", "--at", "today", diary_dir=diary_dir)
         assert code == 0
         assert "test" in out
+
+    def test_rejects_time(self, tmp_path):
+        out, err, code = _run(
+            "show",
+            "--at",
+            "2026-08-03T12:00",
+            diary_dir=str(tmp_path),
+        )
+        assert code != 0
+        assert "show requires a date only, not a time" in err
 
 
 class TestList:

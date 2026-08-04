@@ -34,7 +34,7 @@ def modify_event(old: Event, new: Event, old_date: str, new_date: str) -> str:
     if old_date == new_date:
         header = f"Modified event for {old_date}:"
     else:
-        header = f"Modified event for {old_date} \u2192 {new_date}:"
+        header = f"Modified event for {old_date} → {new_date}:"
     return f"{header}\n- `{old.time}` {old.content}\n+ `{new.time}` {new.content}"
 
 
@@ -53,7 +53,7 @@ def modify_note(old: Note, new: Note, old_date: str, new_date: str) -> str:
     if old_date == new_date:
         header = f"Modified note for {old_date}:"
     else:
-        header = f"Modified note for {old_date} \u2192 {new_date}:"
+        header = f"Modified note for {old_date} → {new_date}:"
     return f"{header}\n- {old.content}\n+ {new.content}"
 
 

@@ -24,8 +24,9 @@ def parse_timepoint(s: str, *, now: datetime | None = None) -> TimePoint:
     - "now" (current date and time)
     - "-15min", "-1h20m", "-5h" (relative time offset)
 
-    The `now` parameter is used to resolve relative times and "now"/"today".
-    If None, the current system time is used.
+    The `now` parameter exists as a clock seam for testing. Production code
+    leaves it as None (defaults to current system time); tests inject a fixed
+    datetime to make "today", "now", and relative offsets deterministic.
     """
     if now is None:
         now = datetime.now()
@@ -41,13 +42,13 @@ def parse_timepoint(s: str, *, now: datetime | None = None) -> TimePoint:
         if date_part == "today":
             date_part = today_str
         return TimePoint(date_str=date_part, time_str=time_part)
-    if s == "today":
+    elif s == "today":
         return TimePoint(date_str=today_str, time_str=None)
-    if s == "now":
+    elif s == "now":
         return TimePoint(date_str=today_str, time_str=now.strftime("%H:%M"))
 
     # Relative time: -15min, -1h20m, -5h, -15m
-    if s.startswith("-"):
+    elif s.startswith("-"):
         m = _RELATIVE_RE.match(s)
         if not m or (m.group(1) is None and m.group(2) is None):
             raise ValueError(f"invalid relative time '{s}': expected -Nh, -Nmin, -Nm, or -NhNm")

@@ -100,7 +100,7 @@ def test_reject_datet_now():
 
 
 def test_reject_spaces_around_t():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="no spaces allowed around 'T'"):
         parse_timepoint("today T 14:00")
 
 

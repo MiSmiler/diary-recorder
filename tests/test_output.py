@@ -111,7 +111,7 @@ class TestModifyEvent:
         new = Event(time="09:00", content="meeting")
         result = modify_event(old, new, "2026-08-03", "2026-08-04")
         assert result == (
-            "Modified event for 2026-08-03 \u2192 2026-08-04:\n- `09:00` meeting\n+ `09:00` meeting"
+            "Modified event for 2026-08-03 → 2026-08-04:\n- `09:00` meeting\n+ `09:00` meeting"
         )
 
 
@@ -141,7 +141,7 @@ class TestModifyNote:
         new = Note(content="same thought")
         result = modify_note(old, new, "2026-08-03", "2026-08-04")
         assert result == (
-            "Modified note for 2026-08-03 \u2192 2026-08-04:\n- same thought\n+ same thought"
+            "Modified note for 2026-08-03 → 2026-08-04:\n- same thought\n+ same thought"
         )
 
 

@@ -1,5 +1,9 @@
+import re
 from dataclasses import dataclass
 from typing import Generic, TypeVar
+
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_TIME_RE = re.compile(r"^\d{2}:\d{2}$")
 
 T = TypeVar("T")
 
@@ -14,6 +18,12 @@ class TimePoint:
 
     date_str: str | None
     time_str: str | None
+
+    def __post_init__(self):
+        if self.date_str is not None and not _DATE_RE.match(self.date_str):
+            raise ValueError(f"invalid date_str '{self.date_str}': expected YYYY-MM-DD")
+        if self.time_str is not None and not _TIME_RE.match(self.time_str):
+            raise ValueError(f"invalid time_str '{self.time_str}': expected HH:MM")
 
 
 @dataclass
