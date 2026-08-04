@@ -5,21 +5,8 @@ from diary_recorder.models import Event, Note, DateSummary
 
 def show(date_str: str, events: list[Event], notes: list[Note]) -> str:
     """Format the show command output with numbered events and notes."""
-    lines = [f"# {date_str}", ""]
-    lines.append("## Events")
-    if events:
-        lines.append("")
-    for i, e in enumerate(events, 1):
-        lines.append(f"{i}. `{e.time}` {e.content}")
-
-    lines.append("")
-    lines.append("## Notes")
-    if notes:
-        lines.append("")
-    for i, n in enumerate(notes, 1):
-        lines.append(f"{i}. {n.content}")
-
-    return "\n".join(lines) + "\n"
+    from diary_recorder.storage import DiaryStorage
+    return DiaryStorage.format_diary(date_str, events, notes, numbered=True)
 
 
 def list_dates(dates: list[DateSummary]) -> str:

@@ -204,7 +204,7 @@ class TestAddNote:
         assert date_file.exists()
         content = date_file.read_text(encoding="utf-8")
         assert content == (
-            "# 2026-08-03\n\n## Events\n\n\n## Notes\n\n- a note\n"
+            "# 2026-08-03\n\n## Events\n\n## Notes\n\n- a note\n"
         )
 
     def test_preserves_existing_events(self, tmp_path):

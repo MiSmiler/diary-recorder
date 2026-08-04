@@ -110,7 +110,7 @@ class TestAddNote:
 
         md = tmp_path / "2026-08-03.md"
         assert md.read_text(encoding="utf-8") == (
-            "# 2026-08-03\n\n## Events\n\n\n## Notes\n\n- today's thought\n"
+            "# 2026-08-03\n\n## Events\n\n## Notes\n\n- today's thought\n"
         )
 
     def test_defaults_to_today(self, tmp_path, monkeypatch):
